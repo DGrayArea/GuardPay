@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { BarChart3, ArrowUp, ArrowDown, Users, CreditCard } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { BarChart3, ArrowUp, ArrowDown, Users, CreditCard, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -11,24 +11,24 @@ import {
 } from "@/components/ui/card";
 import Chip from '@/components/ui/Chip';
 import { Link } from 'react-router-dom';
-
-interface Transaction {
-  id: string;
-  date: string;
-  customer: string;
-  amount: string;
-  status: 'completed' | 'pending' | 'failed';
-}
+import { api, Transaction } from '@/lib/api';
 
 const DashboardHome: React.FC = () => {
-  // Dummy data
-  const transactions: Transaction[] = [
-    { id: 'TX-9385', date: '2 hours ago', customer: 'John D.', amount: '0.85 ETH', status: 'completed' },
-    { id: 'TX-9384', date: '4 hours ago', customer: 'Sarah M.', amount: '450 USDC', status: 'completed' },
-    { id: 'TX-9383', date: '6 hours ago', customer: 'David K.', amount: '0.12 ETH', status: 'pending' },
-    { id: 'TX-9382', date: 'yesterday', customer: 'Emma R.', amount: '220 USDC', status: 'completed' },
-    { id: 'TX-9381', date: 'yesterday', customer: 'Michael T.', amount: '0.5 ETH', status: 'failed' },
-  ];
+  const [stats, setStats] = useState({ totalVolume: 0, totalTx: 0, activeEscrows: 0 });
+  const [recentTx, setRecentTx] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+        setLoading(true);
+        const s = await api.getStats();
+        const tx = await api.getTransactions();
+        setStats(s);
+        setRecentTx(tx.slice(0, 5));
+        setLoading(false);
+    };
+    loadData();
+  }, []);
 
   return (
     <div className="p-6 space-y-6">
@@ -46,42 +46,32 @@ const DashboardHome: React.FC = () => {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Balance
+              Total Revenue
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">4.58 ETH</div>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : (
+                <div className="text-2xl font-bold">${stats.totalVolume.toFixed(2)}</div>
+            )}
             <div className="flex items-center mt-1 text-xs text-green-600">
               <ArrowUp className="mr-1 h-3 w-3" />
-              <span>12.5% from last month</span>
+              <span>Live Data</span>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Monthly Volume
+              Total Transactions
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$12,486</div>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : (
+                <div className="text-2xl font-bold">{stats.totalTx}</div>
+            )}
             <div className="flex items-center mt-1 text-xs text-green-600">
               <ArrowUp className="mr-1 h-3 w-3" />
-              <span>8.2% from last month</span>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Customers
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">164</div>
-            <div className="flex items-center mt-1 text-xs text-red-600">
-              <ArrowDown className="mr-1 h-3 w-3" />
-              <span>3.1% from last month</span>
+              <span>Lifetime</span>
             </div>
           </CardContent>
         </Card>
@@ -92,10 +82,25 @@ const DashboardHome: React.FC = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">24</div>
-            <div className="flex items-center mt-1 text-xs text-green-600">
-              <ArrowUp className="mr-1 h-3 w-3" />
-              <span>18.9% from last month</span>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : (
+                <div className="text-2xl font-bold">{stats.activeEscrows}</div>
+            )}
+            <div className="flex items-center mt-1 text-xs text-blue-600">
+              <span>Pending Action</span>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+            {/* Keeping one dummy for layout balance as we don't have cust count yet */}
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Customers
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">--</div>
+            <div className="flex items-center mt-1 text-xs text-gray-400">
+               Coming Soon
             </div>
           </CardContent>
         </Card>
@@ -111,7 +116,7 @@ const DashboardHome: React.FC = () => {
           <CardContent>
             <div className="h-80 flex items-center justify-center bg-gray-50 rounded-md">
               <BarChart3 size={48} className="text-gray-300" />
-              <span className="ml-2 text-gray-400">Chart visualization placeholder</span>
+              <span className="ml-2 text-gray-400">Charts coming in v2</span>
             </div>
           </CardContent>
         </Card>
@@ -122,25 +127,25 @@ const DashboardHome: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {transactions.slice(0, 3).map((tx) => (
-                <div key={tx.id} className="flex items-start justify-between pb-4 border-b border-gray-100">
+              {loading ? <div className="text-center py-4"><Loader2 className="animate-spin mx-auto" /></div> : recentTx.map((tx) => (
+                <div key={tx.id} className="flex items-start justify-between pb-4 border-b border-gray-100 last:border-0 last:pb-0">
                   <div>
-                    <div className="font-medium">{tx.customer}</div>
-                    <div className="text-sm text-gray-500">{tx.date}</div>
+                    <div className="font-medium">{tx.customer ? `${tx.customer.slice(0,4)}...` : 'Unknown'}</div>
+                    <div className="text-sm text-gray-500">{new Date(tx.timestamp).toLocaleDateString()}</div>
                   </div>
                   <div className="text-right">
-                    <div className="font-medium">{tx.amount}</div>
+                    <div className="font-medium">{tx.amount} {tx.currency}</div>
                     <div className={`text-xs ${
                       tx.status === 'completed' ? 'text-green-600' : 
                       tx.status === 'pending' ? 'text-amber-600' : 'text-red-600'
                     }`}>
-                      {tx.status.charAt(0).toUpperCase() + tx.status.slice(1)}
+                      {tx.status}
                     </div>
                   </div>
                 </div>
               ))}
               <Link to="/dashboard/payments">
-                <Button variant="link" className="p-0 h-auto w-full justify-start">
+                <Button variant="link" className="p-0 h-auto w-full justify-start mt-4">
                   View all transactions
                 </Button>
               </Link>
@@ -158,57 +163,34 @@ const DashboardHome: React.FC = () => {
               Payment Links
             </CardTitle>
             <CardDescription>
-              Create shareable payment links for your customers
+              Create shareable payment links
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button variant="outline" className="w-full">
-              Create Payment Link
-            </Button>
+            <Link to="/dashboard/links">
+                <Button variant="outline" className="w-full">
+                Manage Links
+                </Button>
+            </Link>
           </CardContent>
         </Card>
+        {/* ... keeping other cards static for now as they are less prio ... */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
               <Users className="mr-2 h-5 w-5" />
-              Customer Management
+              Settings
             </CardTitle>
             <CardDescription>
-              Manage your customers and their payment information
+              Configure wallet & preferences
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button variant="outline" className="w-full">
-              View Customers
-            </Button>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <svg 
-                width="20" 
-                height="20" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="2" 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                className="mr-2"
-              >
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
-              </svg>
-              Escrow Service
-            </CardTitle>
-            <CardDescription>
-              Create and manage secure escrow transactions
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" className="w-full">
-              <Link to="/escrow">Manage Escrows</Link>
-            </Button>
+            <Link to="/dashboard/settings">
+                <Button variant="outline" className="w-full">
+                Go to Settings
+                </Button>
+            </Link>
           </CardContent>
         </Card>
       </div>

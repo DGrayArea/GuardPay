@@ -11,6 +11,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CreditCard, ArrowRight, ArrowDown, ArrowUp, Copy, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/components/providers/AuthProvider';
 
 interface Asset {
   name: string;
@@ -22,7 +23,8 @@ interface Asset {
 
 const DashboardWallet: React.FC = () => {
   const { toast } = useToast();
-  const [walletAddress] = useState('0x71C7656EC7ab88b098defB751B7401B5f6d8976F');
+  const { user } = useAuth();
+  const walletAddress = user?.address || 'Not Connected';
   
   // Dummy data
   const assets: Asset[] = [

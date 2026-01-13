@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -16,42 +16,31 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Download, Filter } from 'lucide-react';
+import { Search, Download, Filter, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Chip from '@/components/ui/Chip';
-
-interface Payment {
-  id: string;
-  date: string;
-  customer: string;
-  amount: string;
-  currency: string;
-  status: 'completed' | 'pending' | 'failed';
-  type: 'direct' | 'escrow';
-}
+import { api, Transaction } from '@/lib/api';
 
 const DashboardPayments: React.FC = () => {
   const [activeTab, setActiveTab] = useState('all');
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Dummy data
-  const payments: Payment[] = [
-    { id: 'TX-9385', date: 'Jun 12, 2023', customer: 'John D.', amount: '0.85', currency: 'ETH', status: 'completed', type: 'direct' },
-    { id: 'TX-9384', date: 'Jun 11, 2023', customer: 'Sarah M.', amount: '450', currency: 'USDC', status: 'completed', type: 'escrow' },
-    { id: 'TX-9383', date: 'Jun 11, 2023', customer: 'David K.', amount: '0.12', currency: 'ETH', status: 'pending', type: 'escrow' },
-    { id: 'TX-9382', date: 'Jun 10, 2023', customer: 'Emma R.', amount: '220', currency: 'USDC', status: 'completed', type: 'direct' },
-    { id: 'TX-9381', date: 'Jun 10, 2023', customer: 'Michael T.', amount: '0.5', currency: 'ETH', status: 'failed', type: 'direct' },
-    { id: 'TX-9380', date: 'Jun 09, 2023', customer: 'Lisa P.', amount: '800', currency: 'USDC', status: 'completed', type: 'escrow' },
-    { id: 'TX-9379', date: 'Jun 09, 2023', customer: 'Thomas B.', amount: '0.35', currency: 'ETH', status: 'completed', type: 'direct' },
-    { id: 'TX-9378', date: 'Jun 08, 2023', customer: 'Jessica S.', amount: '175', currency: 'USDC', status: 'pending', type: 'escrow' },
-    { id: 'TX-9377', date: 'Jun 08, 2023', customer: 'Robert W.', amount: '0.22', currency: 'ETH', status: 'completed', type: 'direct' },
-    { id: 'TX-9376', date: 'Jun 07, 2023', customer: 'Amanda L.', amount: '325', currency: 'USDC', status: 'failed', type: 'escrow' },
-  ];
+  useEffect(() => {
+    const loadData = async () => {
+        setLoading(true);
+        const data = await api.getTransactions();
+        setTransactions(data);
+        setLoading(false);
+    };
+    loadData();
+  }, []);
 
   const filteredPayments = activeTab === 'all' 
-    ? payments 
+    ? transactions 
     : activeTab === 'escrow' 
-      ? payments.filter(p => p.type === 'escrow')
-      : payments.filter(p => p.type === 'direct');
+      ? transactions.filter(p => p.type === 'escrow')
+      : transactions.filter(p => p.type === 'direct');
 
   return (
     <div className="p-6 space-y-6">
@@ -105,6 +94,7 @@ const DashboardPayments: React.FC = () => {
                 <TableRow>
                   <TableHead>Transaction ID</TableHead>
                   <TableHead>Date</TableHead>
+                  <TableHead>Title</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Type</TableHead>
@@ -113,52 +103,57 @@ const DashboardPayments: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredPayments.map((payment) => (
-                  <TableRow key={payment.id}>
-                    <TableCell className="font-mono text-xs">{payment.id}</TableCell>
-                    <TableCell>{payment.date}</TableCell>
-                    <TableCell>{payment.customer}</TableCell>
-                    <TableCell>
-                      <div className="font-medium">{payment.amount} {payment.currency}</div>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        variant={payment.type === 'escrow' ? 'primary' : 'secondary'}
-                        size="sm"
-                      >
-                        {payment.type === 'escrow' ? 'Escrow' : 'Direct'}
-                      </Chip>
-                    </TableCell>
-                    <TableCell>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        payment.status === 'completed' ? 'bg-green-100 text-green-800' : 
-                        payment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {payment.status}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm">View</Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {loading ? (
+                    <TableRow>
+                        <TableCell colSpan={8} className="text-center py-8">
+                            <Loader2 className="mx-auto h-6 w-6 animate-spin text-gray-400" />
+                        </TableCell>
+                    </TableRow>
+                ) : filteredPayments.length === 0 ? (
+                    <TableRow>
+                        <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                            No transactions found.
+                        </TableCell>
+                    </TableRow>
+                ) : (
+                    filteredPayments.map((payment) => (
+                    <TableRow key={payment.id}>
+                        <TableCell className="font-mono text-xs">{payment.id}</TableCell>
+                        <TableCell className="text-xs text-gray-500">
+                            {new Date(payment.timestamp).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-sm">{payment.linkTitle || 'N/A'}</TableCell>
+                        <TableCell className="font-mono text-xs text-gray-500">
+                            {payment.customer ? `${payment.customer.slice(0,6)}...` : 'Unknown'}
+                        </TableCell>
+                        <TableCell>
+                        <div className="font-medium">{payment.amount} {payment.currency}</div>
+                        </TableCell>
+                        <TableCell>
+                        <Chip
+                            variant={payment.type === 'escrow' ? 'primary' : 'secondary'}
+                            size="sm"
+                        >
+                            {payment.type === 'escrow' ? 'Escrow' : 'Direct'}
+                        </Chip>
+                        </TableCell>
+                        <TableCell>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            payment.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                            payment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
+                            'bg-red-100 text-red-800'
+                        }`}>
+                            {payment.status}
+                        </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                        <Button variant="ghost" size="sm">View</Button>
+                        </TableCell>
+                    </TableRow>
+                    ))
+                )}
               </TableBody>
             </Table>
-          </div>
-
-          <div className="flex items-center justify-between mt-4">
-            <div className="text-sm text-gray-500">
-              Showing <strong>1-10</strong> of <strong>42</strong> items
-            </div>
-            <div className="flex items-center space-x-2">
-              <Button variant="outline" size="sm" disabled>
-                Previous
-              </Button>
-              <Button variant="outline" size="sm">
-                Next
-              </Button>
-            </div>
           </div>
         </CardContent>
       </Card>

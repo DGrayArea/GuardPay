@@ -3,6 +3,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import DashboardHome from '@/components/dashboard/DashboardHome';
+import PaymentLinks from '@/components/dashboard/PaymentLinks';
 import DashboardPayments from '@/components/dashboard/DashboardPayments';
 import DashboardWallet from '@/components/dashboard/DashboardWallet';
 import DashboardAnalytics from '@/components/dashboard/DashboardAnalytics';
@@ -13,6 +14,7 @@ const Dashboard: React.FC = () => {
     <DashboardLayout>
       <Routes>
         <Route path="/" element={<DashboardHome />} />
+        <Route path="/links" element={<PaymentLinks />} />
         <Route path="/payments" element={<DashboardPayments />} />
         <Route path="/wallet" element={<DashboardWallet />} />
         <Route path="/analytics" element={<DashboardAnalytics />} />

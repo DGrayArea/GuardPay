@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Wallet, Menu, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const Navbar: React.FC = () => {
@@ -63,12 +64,14 @@ const Navbar: React.FC = () => {
                 </li>
               ))}
             </ul>
+            <Link to="/login">
             <Button 
               variant="outline" 
               className="font-medium text-sm glass-button"
             >
               Connect Wallet
             </Button>
+            </Link>
           </div>
         )}
       </div>

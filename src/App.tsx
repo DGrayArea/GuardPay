@@ -2,31 +2,44 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Web3Provider } from "@/components/providers/Web3Provider";
+import { AuthProvider } from "@/components/providers/AuthProvider";
+import RequireAuth from "@/components/providers/RequireAuth";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
+import Payment from "./pages/Payment";
+import Login from "./pages/Login";
+import Invoice from "./pages/Invoice";
 import Escrow from "./pages/Escrow";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
-
 const App = () => (
-  <QueryClientProvider client={queryClient}>
+  <Web3Provider>
     <TooltipProvider>
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/dashboard/*" element={<Dashboard />} />
-          <Route path="/escrow" element={<Escrow />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/pay/:id" element={<Payment />} />
+            <Route path="/invoice/:id" element={<Invoice />} />
+            <Route path="/escrow" element={<Escrow />} />
+            
+            {/* Protected Routes */}
+            <Route element={<RequireAuth />}>
+              <Route path="/dashboard/*" element={<Dashboard />} />
+            </Route>
+
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
-  </QueryClientProvider>
+  </Web3Provider>
 );
 
 export default App;

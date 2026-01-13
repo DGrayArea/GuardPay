@@ -3,6 +3,7 @@ import React, { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import Chip from '@/components/ui/Chip';
 import { ArrowRight, Shield } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Hero: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -52,10 +53,12 @@ const Hero: React.FC = () => {
           </p>
           
           <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+            <Link to="/login">
             <Button className="px-6 py-6 text-base font-medium rounded-xl transition-all hover:translate-y-[-2px] bg-web3-blue text-white hover:bg-opacity-90">
               Start Accepting Payments
               <ArrowRight size={18} className="ml-2" />
             </Button>
+            </Link>
             <Button variant="outline" className="px-6 py-6 text-base font-medium rounded-xl border-gray-200 text-gray-700 hover:bg-gray-50">
               Explore Escrow Service
               <Shield size={18} className="ml-2" />

@@ -10,10 +10,12 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
-  User
+  User,
+  Link as LinkIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/components/providers/AuthProvider';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -22,12 +24,18 @@ interface DashboardLayoutProps {
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const { logout, user } = useAuth();
 
   const navItems = [
     { 
       icon: <LayoutDashboard size={20} />, 
       label: "Dashboard", 
       path: "/dashboard" 
+    },
+    {
+      icon: <LinkIcon size={20} />, 
+      label: "Payment Links", 
+      path: "/dashboard/links"
     },
     { 
       icon: <CreditCard size={20} />, 
@@ -113,7 +121,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             {!collapsed && (
               <div>
                 <p className="text-sm font-medium">Merchant Account</p>
-                <p className="text-xs text-gray-400">Premium Store</p>
+                <p className="text-xs text-gray-400">
+                    {user?.address ? `${user.address.slice(0,6)}...${user.address.slice(-4)}` : 'Not Connected'}
+                </p>
               </div>
             )}
           </div>
@@ -123,6 +133,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               variant="ghost" 
               size="sm" 
               className="w-full mt-4 text-gray-400 hover:text-white hover:bg-gray-800"
+              onClick={logout}
             >
               <LogOut size={16} className="mr-2" />
               Sign Out

@@ -342,7 +342,7 @@ const Escrow: React.FC = () => {
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-2">Smart Contract</h3>
                   <div className="font-mono text-xs break-all bg-gray-50 p-3 rounded">
-                    0x71C7656EC7ab88b098defB751B7401B5f6d8976F
+                    0x... (GuardPay Contract)
                   </div>
                   <Button variant="ghost" size="sm" className="mt-2 h-auto p-0 text-web3-blue">
                     View on Explorer

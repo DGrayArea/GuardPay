@@ -58,8 +58,8 @@ const STORAGE_KEYS = {
 class ApiService {
   private settings: Settings = {
     merchantName: 'Premium Merchant',
-    receivingAddress: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
-    solanaAddress: 'AnayTw3f5Jv6X6U9xF6R9m8jC3zD3r5yH7k9d4f1j2h3',
+    receivingAddress: '',
+    solanaAddress: '',
     defaultCurrency: 'USD'
   };
 

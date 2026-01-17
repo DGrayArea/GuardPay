@@ -1,89 +1,66 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useAccount, useDisconnect } from 'wagmi';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { useNavigate } from 'react-router-dom';
-
-interface User {
-  address: string;
-  type: 'evm' | 'solana';
-}
+import { api } from '@/lib/api';
 
 interface AuthContextType {
-  user: User | null;
+  isAuthenticated: boolean;
+  merchantId: string | null;
+  walletAddress: string | null;
   login: (address: string, type: 'evm' | 'solana') => void;
   logout: () => void;
-  isAuthenticated: boolean;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType>({
+  isAuthenticated: false,
+  merchantId: null,
+  walletAddress: null,
+  login: () => {},
+  logout: () => {},
+});
+
+export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  
-  // Wallet Hooks
-  const { disconnect: disconnectEvm, isConnected: isEvmConnected, status: evmStatus } = useAccount();
-  const { disconnect: disconnectSol, connected: isSolConnected, connecting: isSolConnecting, publicKey } = useWallet();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [merchantId, setMerchantId] = useState<string | null>(null);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
 
-  // Load from local storage
   useEffect(() => {
-    const stored = localStorage.getItem('guardpay_user');
-    if (stored) {
-      setUser(JSON.parse(stored));
-    }
+    // Check if user is already authenticated
+    const checkAuth = () => {
+      const authenticated = api.isAuthenticated();
+      setIsAuthenticated(authenticated);
+      
+      if (authenticated) {
+        const storedAddress = localStorage.getItem('guardpay_wallet');
+        const storedMerchantId = localStorage.getItem('guardpay_merchant_id');
+        setWalletAddress(storedAddress);
+        setMerchantId(storedMerchantId);
+      }
+    };
+
+    checkAuth();
   }, []);
 
-  // STRICT GATING: Auto-logout if wallet disconnects
-  useEffect(() => {
-    if (!user) return;
-
-    if (user.type === 'evm') {
-       // If EVM user, but wallet is not connected and not trying to reconnect
-       if (!isEvmConnected && evmStatus !== 'reconnecting') {
-          console.log("EVM Wallet Disconnected - Logging out");
-          logout();
-       }
-    } else if (user.type === 'solana') {
-       // If Solana user, but wallet is not connected
-       // Note: checking publicKey is often more reliable for "active session"
-       if (!isSolConnected && !isSolConnecting && !publicKey) {
-           console.log("Solana Wallet Disconnected - Logging out");
-           logout();
-       }
-    }
-  }, [user, isEvmConnected, evmStatus, isSolConnected, isSolConnecting, publicKey]);
-
   const login = (address: string, type: 'evm' | 'solana') => {
-    const newUser = { address, type };
-    setUser(newUser);
-    localStorage.setItem('guardpay_user', JSON.stringify(newUser));
+    setIsAuthenticated(true);
+    setWalletAddress(address);
+    localStorage.setItem('guardpay_wallet', address);
+    localStorage.setItem('guardpay_wallet_type', type);
   };
 
   const logout = () => {
-    setUser(null);
-    localStorage.removeItem('guardpay_user');
-    
-    // Attempt to disconnect wallets to ensure clean state
-    try { disconnectEvm(); } catch (e) {}
-    try { disconnectSol(); } catch (e) {}
-    
-    // Redirect
-    if (window.location.pathname.startsWith('/dashboard')) {
-        window.location.href = '/login';
-    }
+    api.logout();
+    setIsAuthenticated(false);
+    setMerchantId(null);
+    setWalletAddress(null);
+    localStorage.removeItem('guardpay_wallet');
+    localStorage.removeItem('guardpay_merchant_id');
+    localStorage.removeItem('guardpay_wallet_type');
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ isAuthenticated, merchantId, walletAddress, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 };

@@ -1,44 +1,46 @@
+import axios, { AxiosInstance } from 'axios';
 
- 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export interface PaymentLink {
   id: string;
   title: string;
   price: number;
   currency: 'USD' | 'EUR';
-  crypto: 'ETH' | 'USDT';
-  walletAddress?: string; 
+  crypto: 'ETH' | 'USDT' | 'SOL';
+  walletAddress?: string;
   solanaAddress?: string;
   createdAt: string;
 }
 
 export interface Transaction {
   id: string;
-  linkId: string;
-  linkTitle?: string;
-  amount: number;
-  currency: string;
-  cryptoAmount: number;
-  status: 'pending' | 'completed' | 'failed';
-  txHash?: string;
-  customer?: string;
-  timestamp: string;
-  type: 'direct' | 'escrow';
-  chain: 'ETH' | 'BSC' | 'POLYGON' | 'BASE' | 'SOLANA';
-  invoiceId?: string;
+  invoiceId: string;
+  txHash: string;
+  amount: string;
+  chain: string;
+  status: 'pending' | 'confirming' | 'completed' | 'failed';
+  confirmations: number;
+  confirmedAt?: string;
+  createdAt: string;
 }
 
 export interface Invoice {
   id: string;
   linkId: string;
+  linkTitle?: string;
   amount: number;
   currency: string;
+  crypto: string;
+  chain: string;
   status: 'new' | 'pending' | 'confirming' | 'paid' | 'expired';
-  expiresAt: string; // ISO Date
-  createdAt: string;
-  walletAddress?: string;
+  paymentAddress: string;
   solanaAddress?: string;
-  linkTitle?: string;
+  expectedAmount: string;
+  expiresAt: string;
+  createdAt: string;
+  paidAt?: string;
+  transactions?: Transaction[];
 }
 
 export interface Settings {
@@ -48,158 +50,165 @@ export interface Settings {
   defaultCurrency: 'USD' | 'EUR';
 }
 
-const STORAGE_KEYS = {
-    SETTINGS: 'guardpay_settings',
-    LINKS: 'guardpay_links',
-    TXS: 'guardpay_transactions',
-    INVOICES: 'guardpay_invoices'
-};
+export interface MerchantProfile {
+  id: string;
+  walletAddress: string;
+  merchantName: string;
+  receivingAddress: string;
+  solanaAddress: string;
+  defaultCurrency: string;
+  apiKey?: string;
+}
+
+export interface Stats {
+  totalVolume: number;
+  totalTransactions: number;
+  pendingInvoices: number;
+  recentTransactions: any[];
+}
 
 class ApiService {
-  private settings: Settings = {
-    merchantName: 'Premium Merchant',
-    receivingAddress: '',
-    solanaAddress: '',
-    defaultCurrency: 'USD'
-  };
-
-  private links: PaymentLink[] = [];
-  private transactions: Transaction[] = [];
-  private invoices: Invoice[] = [];
+  private client: AxiosInstance;
+  private token: string | null = null;
 
   constructor() {
-      this.loadFromStorage();
-  }
+    this.client = axios.create({
+      baseURL: `${API_URL}/api`,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
-  private loadFromStorage() {
-      try {
-          const s = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-          if (s) this.settings = JSON.parse(s);
+    // Load token from localStorage
+    this.token = localStorage.getItem('guardpay_token');
+    if (this.token) {
+      this.setAuthHeader(this.token);
+    }
 
-          const l = localStorage.getItem(STORAGE_KEYS.LINKS);
-          if (l) this.links = JSON.parse(l);
-          else this.links = [{
-            id: 'pl_1',
-            title: 'Demo Subscription',
-            price: 49.99,
-            currency: 'USD',
-            crypto: 'ETH',
-            createdAt: new Date().toISOString(),
-          }];
-
-          const t = localStorage.getItem(STORAGE_KEYS.TXS);
-          if (t) this.transactions = JSON.parse(t);
-          
-          const i = localStorage.getItem(STORAGE_KEYS.INVOICES);
-          if (i) this.invoices = JSON.parse(i);
-
-      } catch (e) {
-          console.error("Failed to load storage", e);
+    // Response interceptor for token refresh
+    this.client.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        if (error.response?.status === 401) {
+          // Token expired, clear auth
+          this.logout();
+        }
+        return Promise.reject(error);
       }
+    );
   }
 
-  private saveToStorage() {
-      localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(this.settings));
-      localStorage.setItem(STORAGE_KEYS.LINKS, JSON.stringify(this.links));
-      localStorage.setItem(STORAGE_KEYS.TXS, JSON.stringify(this.transactions));
-      localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(this.invoices));
+  private setAuthHeader(token: string) {
+    this.client.defaults.headers.common['Authorization'] = `Bearer ${token}`;
   }
 
-  // Settings
-  async getSettings(): Promise<Settings> {
-    return { ...this.settings };
+  // Authentication
+  async getNonce(walletAddress: string): Promise<string> {
+    const response = await this.client.post('/auth/nonce', { walletAddress });
+    return response.data.nonce;
   }
 
-  async updateSettings(newSettings: Partial<Settings>): Promise<Settings> {
-    this.settings = { ...this.settings, ...newSettings };
-    this.saveToStorage();
-    return this.settings;
+  async verifySignature(walletAddress: string, signature: string): Promise<{ token: string; merchant: any }> {
+    const response = await this.client.post('/auth/verify', { walletAddress, signature });
+    this.token = response.data.token;
+    localStorage.setItem('guardpay_token', this.token);
+    this.setAuthHeader(this.token);
+    return response.data;
   }
 
-  // Links
+  logout() {
+    this.token = null;
+    localStorage.removeItem('guardpay_token');
+    delete this.client.defaults.headers.common['Authorization'];
+  }
+
+  isAuthenticated(): boolean {
+    return !!this.token;
+  }
+
+  // Merchant
+  async getProfile(): Promise<MerchantProfile> {
+    const response = await this.client.get('/merchant/profile');
+    return response.data;
+  }
+
+  async updateSettings(settings: Partial<Settings>): Promise<Settings> {
+    const response = await this.client.put('/merchant/settings', settings);
+    return response.data;
+  }
+
+  async generateApiKey(): Promise<{ apiKey: string; message: string }> {
+    const response = await this.client.post('/merchant/api-key');
+    return response.data;
+  }
+
+  async getStats(): Promise<Stats> {
+    const response = await this.client.get('/merchant/stats');
+    return response.data;
+  }
+
+  // Payment Links
   async getLinks(): Promise<PaymentLink[]> {
-    return [...this.links];
+    const response = await this.client.get('/links');
+    return response.data;
   }
 
   async createLink(data: Omit<PaymentLink, 'id' | 'createdAt'>): Promise<PaymentLink> {
-    const newLink = { 
-      ...data, 
-      id: `pl_${Math.random().toString(36).substr(2, 9)}`, 
-      createdAt: new Date().toISOString() 
-    };
-    this.links.push(newLink);
-    this.saveToStorage();
-    return newLink;
+    const response = await this.client.post('/links', data);
+    return response.data;
   }
 
-  async getLink(id: string): Promise<PaymentLink | undefined> {
-    return this.links.find(l => l.id === id);
+  async getLink(id: string): Promise<PaymentLink> {
+    const response = await this.client.get(`/links/${id}`);
+    return response.data;
   }
 
-  // Transactions
-  async getTransactions(): Promise<Transaction[]> {
-    return [...this.transactions];
+  async updateLink(id: string, data: Partial<PaymentLink>): Promise<PaymentLink> {
+    const response = await this.client.put(`/links/${id}`, data);
+    return response.data;
   }
 
-  async createTransaction(data: Omit<Transaction, 'id' | 'timestamp'>): Promise<Transaction> {
-    const newTx = { 
-      ...data, 
-      id: `tx_${Math.random().toString(36).substr(2, 9)}`, 
-      timestamp: new Date().toISOString() 
-    };
-    this.transactions.unshift(newTx);
-    this.saveToStorage();
-    return newTx;
+  async deleteLink(id: string): Promise<void> {
+    await this.client.delete(`/links/${id}`);
   }
 
   // Invoices
-  async createInvoice(linkId: string): Promise<Invoice> {
-    const link = this.links.find(l => l.id === linkId);
-    if (!link) throw new Error("Link not found");
-
-    const invoice: Invoice = {
-        id: Math.random().toString(36).substr(2, 9),
-        linkId: link.id,
-        linkTitle: link.title,
-        amount: link.price,
-        currency: link.currency,
-        status: 'new',
-        createdAt: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-        walletAddress: link.walletAddress || this.settings.receivingAddress,
-        solanaAddress: link.solanaAddress || this.settings.solanaAddress
-    };
-
-    this.invoices.push(invoice);
-    this.saveToStorage();
-    return invoice;
+  async createInvoice(linkId: string, chain?: string): Promise<Invoice> {
+    const response = await this.client.post('/invoices', { linkId, chain });
+    return response.data;
   }
 
-  async getInvoice(id: string): Promise<Invoice | undefined> {
-    return this.invoices.find(i => i.id === id);
+  async getInvoice(id: string): Promise<Invoice> {
+    const response = await this.client.get(`/invoices/${id}`);
+    return response.data;
   }
 
-  async updateInvoiceStatus(id: string, status: Invoice['status']) {
-      const inv = this.invoices.find(i => i.id === id);
-      if (inv) {
-          inv.status = status;
-          this.saveToStorage();
-      }
+  async getInvoiceStatus(id: string): Promise<{ status: string; paidAt?: string; transactions: any[] }> {
+    const response = await this.client.get(`/invoices/${id}/status`);
+    return response.data;
   }
-  
-  // Stats
-  async getStats() {
-    const totalVolume = this.transactions
-      .filter(t => t.status === 'completed')
-      .reduce((acc, t) => acc + t.amount, 0);
-    
-    const activeEscrows = this.transactions.filter(t => t.status === 'pending' && t.type === 'escrow').length;
-    
-    return {
-      totalVolume,
-      totalTx: this.transactions.length,
-      activeEscrows
-    };
+
+  async verifyInvoice(id: string): Promise<void> {
+    await this.client.post(`/invoices/${id}/verify`);
+  }
+
+  // Webhooks
+  async getWebhooks(): Promise<any[]> {
+    const response = await this.client.get('/webhooks');
+    return response.data;
+  }
+
+  async createWebhook(url: string, events: string[]): Promise<any> {
+    const response = await this.client.post('/webhooks', { url, events });
+    return response.data;
+  }
+
+  async deleteWebhook(id: string): Promise<void> {
+    await this.client.delete(`/webhooks/${id}`);
+  }
+
+  async testWebhook(id: string): Promise<void> {
+    await this.client.post(`/webhooks/${id}/test`);
   }
 }
 

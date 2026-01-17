@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from 'react-router-dom';
@@ -10,7 +9,7 @@ import { useAuth } from '@/components/providers/AuthProvider';
 // Wallet Kits
 import { ConnectKitButton } from "connectkit";
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { useAccount } from 'wagmi';
+import { useAccount, useSignMessage } from 'wagmi';
 import { useWallet } from '@solana/wallet-adapter-react';
 
 const Login: React.FC = () => {
@@ -19,9 +18,10 @@ const Login: React.FC = () => {
     
     // EVM State
     const { address: evmAddress, isConnected: isEvmConnected } = useAccount();
+    const { signMessageAsync } = useSignMessage();
     
     // Solana State
-    const { publicKey, connected: isSolConnected } = useWallet();
+    const { publicKey, connected: isSolConnected, signMessage: signSolanaMessage } = useWallet();
 
     // Redirect if already logged in
     useEffect(() => {
@@ -30,30 +30,77 @@ const Login: React.FC = () => {
         }
     }, [isAuthenticated, navigate]);
 
-    // Handle EVM Login
+    // Handle EVM Login with signature
     useEffect(() => {
-        const handleLogin = async () => {
+        const handleEvmLogin = async () => {
             if (isEvmConnected && evmAddress && !isAuthenticated) {
-                await api.updateSettings({ receivingAddress: evmAddress });
-                login(evmAddress, 'evm');
-                toast.success("Signed in with EVM Wallet");
+                try {
+                    // Get nonce
+                    const nonce = await api.getNonce(evmAddress);
+                    
+                    // Sign message
+                    const message = `Sign this message to authenticate with GuardPay.\n\nNonce: ${nonce}`;
+                    const signature = await signMessageAsync({ message });
+                    
+                    // Verify signature and get token
+                    const { token, merchant } = await api.verifySignature(evmAddress, signature);
+                    
+                    // Update auth state
+                    login(evmAddress, 'evm');
+                    localStorage.setItem('guardpay_merchant_id', merchant.id);
+                    
+                    toast.success("Signed in with EVM Wallet");
+                    navigate('/dashboard');
+                } catch (error: any) {
+                    console.error('EVM login error:', error);
+                    if (error.message?.includes('User rejected')) {
+                        toast.error("Signature rejected");
+                    } else {
+                        toast.error("Failed to authenticate");
+                    }
+                }
             }
         };
-        handleLogin();
-    }, [isEvmConnected, evmAddress, isAuthenticated, login]);
+        handleEvmLogin();
+    }, [isEvmConnected, evmAddress, isAuthenticated, login, navigate, signMessageAsync]);
 
-    // Handle Solana Login
+    // Handle Solana Login with signature
     useEffect(() => {
-        const handleLogin = async () => {
-            if (isSolConnected && publicKey && !isAuthenticated) {
-                const address = publicKey.toString();
-                await api.updateSettings({ solanaAddress: address });
-                login(address, 'solana');
-                toast.success("Signed in with Solana Wallet");
+        const handleSolanaLogin = async () => {
+            if (isSolConnected && publicKey && !isAuthenticated && signSolanaMessage) {
+                try {
+                    const address = publicKey.toString();
+                    
+                    // Get nonce
+                    const nonce = await api.getNonce(address);
+                    
+                    // Sign message
+                    const message = `Sign this message to authenticate with GuardPay.\n\nNonce: ${nonce}`;
+                    const encodedMessage = new TextEncoder().encode(message);
+                    const signature = await signSolanaMessage(encodedMessage);
+                    const signatureBase64 = Buffer.from(signature).toString('base64');
+                    
+                    // Verify signature and get token
+                    const { token, merchant } = await api.verifySignature(address, signatureBase64);
+                    
+                    // Update auth state
+                    login(address, 'solana');
+                    localStorage.setItem('guardpay_merchant_id', merchant.id);
+                    
+                    toast.success("Signed in with Solana Wallet");
+                    navigate('/dashboard');
+                } catch (error: any) {
+                    console.error('Solana login error:', error);
+                    if (error.message?.includes('User rejected')) {
+                        toast.error("Signature rejected");
+                    } else {
+                        toast.error("Failed to authenticate");
+                    }
+                }
             }
         };
-        handleLogin();
-    }, [isSolConnected, publicKey, isAuthenticated, login]);
+        handleSolanaLogin();
+    }, [isSolConnected, publicKey, isAuthenticated, login, navigate, signSolanaMessage]);
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
@@ -96,7 +143,7 @@ const Login: React.FC = () => {
             </Card>
             
             <p className="mt-8 text-sm text-gray-500">
-                Don't have a wallet? <a href="#" className="text-web3-blue hover:underline">Learn how to create one</a>
+                Don't have a wallet? <a href="https://metamask.io" target="_blank" rel="noopener noreferrer" className="text-web3-blue hover:underline">Learn how to create one</a>
             </p>
         </div>
     );

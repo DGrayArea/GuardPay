@@ -1,0 +1,14 @@
+<svg viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg">
+  <rect width="180" height="180" fill="#0A1024"/>
+  <mask id="k">
+    <rect width="180" height="180" fill="black"/>
+    <path d="M57.4 77.6V49.5a32.6 32.6 0 0 1 65.2 0v28.1z" fill="white"/>
+    <path d="M61.9 82.1h56.2l31.5 14.1a28 28 0 0 1 16.4 25.5V166H14v-44.3a28 28 0 0 1 16.4-25.5z" fill="white"/>
+    <rect x="65.8" y="50.1" width="48.4" height="12.4" rx="6.2" fill="#0A1024"/>
+    <rect x="49.5" y="93.4" width="81" height="11.3" rx="5.65" fill="#0A1024"/>
+    <rect x="83.3" y="104.7" width="13.4" height="50.6" fill="#0A1024"/>
+    <path d="M83.3 155.3 90 173.3l6.7-18z" fill="#0A1024"/>
+    <path d="M25.9 142.9 78.2 118.7M154.1 142.9 101.8 118.7" stroke="#0A1024" stroke-width="9" stroke-linecap="round"/>
+  </mask>
+  <rect width="180" height="180" fill="#12A594" mask="url(#k)"/>
+</svg>

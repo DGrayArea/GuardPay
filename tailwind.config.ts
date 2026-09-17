@@ -62,10 +62,35 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
+				/* GuardPay brand scale. */
+				ink: {
+					DEFAULT: 'hsl(var(--gp-ink))',
+					soft: 'hsl(var(--gp-ink-soft))'
+				},
+				brand: {
+					DEFAULT: 'hsl(var(--gp-brand))',
+					strong: 'hsl(var(--gp-brand-strong))',
+					soft: 'hsl(var(--gp-brand-soft))'
+				},
+				escrow: {
+					DEFAULT: 'hsl(var(--gp-escrow))',
+					soft: 'hsl(var(--gp-escrow-soft))'
+				},
+				warn: {
+					DEFAULT: 'hsl(var(--gp-warn))',
+					soft: 'hsl(var(--gp-warn-soft))'
+				},
+				ok: {
+					DEFAULT: 'hsl(var(--gp-ok))',
+					soft: 'hsl(var(--gp-ok-soft))'
+				},
+				/* Retained so existing `web3-*` classes keep resolving; these now
+				   point at the brand scale rather than the old sky-blue. */
 				web3: {
-					blue: '#0EA5E9',
-					skyBlue: '#E0F2FE',
-					lightBlue: '#BAE6FD',
+					blue: 'hsl(var(--gp-brand))',
+					skyBlue: 'hsl(var(--gp-brand-soft))',
+					lightBlue: 'hsl(var(--gp-brand-soft))',
+					indigo: 'hsl(var(--gp-escrow))',
 					gray: '#F3F4F6',
 					darkGray: '#1F2937',
 					black: '#111827'
@@ -77,7 +102,11 @@ export default {
 				sm: 'calc(var(--radius) - 4px)'
 			},
 			fontFamily: {
-				sans: ['Inter', 'system-ui', 'sans-serif'],
+				sans: ['var(--font-sans)', 'Inter', 'system-ui', 'sans-serif'],
+				mono: ['var(--font-mono)', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+			},
+			letterSpacing: {
+				tightest: '-0.03em',
 			},
 			keyframes: {
 				'accordion-down': {

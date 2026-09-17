@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import Chip from '@/components/ui/Chip';
@@ -7,6 +9,11 @@ const MerchantPreview: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      containerRef.current?.classList.remove('opacity-0', 'translate-y-10');
+      return;
+    }
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -47,16 +54,16 @@ const MerchantPreview: React.FC = () => {
   ];
 
   return (
-    <div id="merchants" className="py-16 md:py-24 bg-gray-50">
+    <div id="merchants" className="py-16 sm:py-20 md:py-24 bg-muted/40">
       <div 
         ref={containerRef}
-        className="container mx-auto px-6 transition-all duration-1000 ease-out opacity-0 translate-y-10"
+        className="container mx-auto px-5 sm:px-6 transition-all duration-1000 ease-out opacity-0 translate-y-10"
       >
         <div className="flex flex-col md:flex-row items-center justify-between gap-12 md:gap-8">
           <div className="flex flex-col items-start md:max-w-md">
             <Chip variant="secondary" className="mb-6">For Merchants</Chip>
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">Powerful tools to manage your crypto payments</h2>
-            <p className="text-lg text-gray-600 mb-8">
+            <h2 className="text-balance text-[1.75rem] sm:text-3xl md:text-4xl font-bold tracking-tight text-ink mb-5 sm:mb-6">Powerful tools to manage your crypto payments</h2>
+            <p className="text-lg text-ink-soft mb-8">
               From simple payment buttons to full checkout experiences, our merchant dashboard gives you everything you need to succeed with web3 payments.
             </p>
             
@@ -125,8 +132,8 @@ const MerchantPreview: React.FC = () => {
                         { label: "Monthly Volume", value: "$12,486", change: "+8.2%" },
                         { label: "Transactions", value: "156", change: "+24.3%" },
                       ].map((stat, index) => (
-                        <div key={index} className="bg-gray-50 p-4 rounded-lg">
-                          <p className="text-sm text-gray-500 mb-1">{stat.label}</p>
+                        <div key={index} className="bg-muted/40 p-4 rounded-lg">
+                          <p className="text-sm text-ink-soft mb-1">{stat.label}</p>
                           <div className="flex justify-between items-end">
                             <p className="text-xl font-medium">{stat.value}</p>
                             <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
@@ -148,17 +155,17 @@ const MerchantPreview: React.FC = () => {
                       <div className="overflow-hidden rounded-lg border border-gray-200">
                         <table className="w-full text-sm">
                           <thead>
-                            <tr className="bg-gray-50">
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <tr className="bg-muted/40">
+                              <th className="px-4 py-3 text-left text-xs font-medium text-ink-soft uppercase tracking-wider">ID</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-ink-soft uppercase tracking-wider">Customer</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-ink-soft uppercase tracking-wider">Amount</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-ink-soft uppercase tracking-wider">Status</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-ink-soft uppercase tracking-wider">Date</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-200">
                             {transactions.map((tx, index) => (
-                              <tr key={index} className="hover:bg-gray-50">
+                              <tr key={index} className="hover:bg-muted/40">
                                 <td className="px-4 py-3 whitespace-nowrap font-mono text-xs">{tx.id}</td>
                                 <td className="px-4 py-3 whitespace-nowrap">{tx.customer}</td>
                                 <td className="px-4 py-3 whitespace-nowrap font-medium">{tx.amount}</td>
@@ -171,7 +178,7 @@ const MerchantPreview: React.FC = () => {
                                     {tx.status}
                                   </span>
                                 </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-gray-500">{tx.date}</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-ink-soft">{tx.date}</td>
                               </tr>
                             ))}
                           </tbody>

@@ -1,110 +1,115 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Wallet, Menu, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { Logo } from '@/components/brand/Logo';
+import { cn } from '@/lib/utils';
+
+const navItems = [
+  { label: 'Payments', href: '#payments' },
+  { label: 'Escrow', href: '/escrow' },
+  { label: 'For merchants', href: '#merchants' },
+  { label: 'Docs', href: '#docs' },
+];
 
 const Navbar: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
-  const isMobile = useIsMobile();
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => {
-      const isScrolled = window.scrollY > 10;
-      if (isScrolled !== scrolled) {
-        setScrolled(isScrolled);
-      }
-    };
-
+    const handleScroll = () => setScrolled(window.scrollY > 10);
+    handleScroll();
     window.addEventListener('scroll', handleScroll, { passive: true });
-    
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, [scrolled]);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
-  const navItems = [
-    { label: "Payments", href: "#payments" },
-    { label: "Escrow", href: "#escrow" },
-    { label: "Merchants", href: "#merchants" },
-    { label: "About", href: "#about" },
-  ];
+  // A fixed nav with an open panel must not let the page scroll behind it.
+  useEffect(() => {
+    document.body.style.overflow = menuOpen ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [menuOpen]);
 
   return (
-    <nav className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${
-      scrolled ? 'py-3 bg-white/90 backdrop-blur-sm shadow-sm' : 'py-5 bg-transparent'
-    }`}>
-      <div className="container mx-auto px-6 flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <div className="h-8 w-8 rounded-lg bg-web3-skyBlue flex items-center justify-center">
-            <Wallet className="h-5 w-5 text-web3-blue" />
-          </div>
-          <span className="text-xl font-semibold">GuardPay</span>
-        </div>
-
-        {isMobile ? (
-          <button 
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="p-2 text-gray-700 focus:outline-none"
-          >
-            {menuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
-        ) : (
-          <div className="flex items-center space-x-8">
-            <ul className="flex space-x-8">
-              {navItems.map((item, index) => (
-                <li key={index}>
-                  <a 
-                    href={item.href}
-                    className="text-sm font-medium text-gray-700 hover:text-black transition-colors"
-                  >
-                    {item.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-            <Link to="/login">
-            <Button 
-              variant="outline" 
-              className="font-medium text-sm glass-button"
-            >
-              Connect Wallet
-            </Button>
-            </Link>
-          </div>
-        )}
-      </div>
-
-      {isMobile && menuOpen && (
-        <div className="absolute top-full left-0 w-full bg-white/95 backdrop-blur-sm shadow-md py-4 animate-fade-in-up-fast">
-          <div className="container mx-auto px-6">
-            <ul className="flex flex-col space-y-4">
-              {navItems.map((item, index) => (
-                <li key={index}>
-                  <a 
-                    href={item.href}
-                    className="block text-base font-medium text-gray-700 hover:text-black transition-colors"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    {item.label}
-                  </a>
-                </li>
-              ))}
-              <li>
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-center font-medium text-sm glass-button mt-2"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Connect Wallet
-                </Button>
-              </li>
-            </ul>
-          </div>
-        </div>
+    <header
+      className={cn(
+        'fixed inset-x-0 top-0 z-50 transition-all duration-300',
+        scrolled || menuOpen
+          ? 'border-b border-border/70 bg-background/85 py-3 backdrop-blur-md'
+          : 'border-b border-transparent py-5'
       )}
-    </nav>
+    >
+      <nav
+        className="container mx-auto flex items-center justify-between px-5 sm:px-6"
+        aria-label="Main"
+      >
+        <Link href="/" className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+          <Logo />
+        </Link>
+
+        {/* Desktop */}
+        <div className="hidden items-center gap-8 md:flex">
+          <ul className="flex items-center gap-7">
+            {navItems.map((item) => (
+              <li key={item.label}>
+                <Link
+                  href={item.href}
+                  className="text-sm font-medium text-ink-soft transition-colors hover:text-ink"
+                >
+                  {item.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <Link href="/account">
+            <Button size="sm" className="font-medium">
+              My account
+            </Button>
+          </Link>
+        </div>
+
+        {/* Mobile trigger */}
+        <button
+          type="button"
+          onClick={() => setMenuOpen((open) => !open)}
+          className="-mr-2 inline-flex h-11 w-11 items-center justify-center rounded-lg text-ink md:hidden"
+          aria-expanded={menuOpen}
+          aria-controls="mobile-menu"
+          aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+        >
+          {menuOpen ? <X size={22} /> : <Menu size={22} />}
+        </button>
+      </nav>
+
+      {/* Mobile panel */}
+      <div
+        id="mobile-menu"
+        hidden={!menuOpen}
+        className="border-t border-border/70 bg-background md:hidden"
+      >
+        <ul className="container mx-auto flex flex-col gap-1 px-5 py-4">
+          {navItems.map((item) => (
+            <li key={item.label}>
+              <Link
+                href={item.href}
+                onClick={() => setMenuOpen(false)}
+                className="block rounded-lg px-2 py-3 text-base font-medium text-ink-soft transition-colors hover:bg-muted hover:text-ink"
+              >
+                {item.label}
+              </Link>
+            </li>
+          ))}
+          <li className="pt-2">
+            <Link href="/account" onClick={() => setMenuOpen(false)}>
+              <Button className="h-12 w-full text-base">My account</Button>
+            </Link>
+          </li>
+        </ul>
+      </div>
+    </header>
   );
 };
 

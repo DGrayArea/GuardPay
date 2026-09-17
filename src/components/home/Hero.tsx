@@ -1,86 +1,109 @@
+'use client';
 
 import React, { useEffect, useRef } from 'react';
+import Link from 'next/link';
+import { ArrowRight, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Chip from '@/components/ui/Chip';
-import { ArrowRight, Shield } from 'lucide-react';
-import { Link } from 'react-router-dom';
+
+/**
+ * Figures here describe what the product does, not how many people use it.
+ * Invented traction numbers on a pre-launch site are a liability, not a hook.
+ */
+const capabilities = [
+  { value: '4', label: 'Chains supported' },
+  { value: '~30s', label: 'To confirmation' },
+  { value: '1%', label: 'Merchant fee' },
+  { value: 'On-chain', label: 'Escrow custody' },
+];
 
 const Hero: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
-  
+
   useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+
+    // Respect users who have asked for less motion.
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      node.classList.remove('opacity-0', 'translate-y-10');
+      return;
+    }
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          entry.target.classList.add('opacity-100');
-          entry.target.classList.remove('opacity-0', 'translate-y-10');
+          node.classList.remove('opacity-0', 'translate-y-10');
+          observer.unobserve(node);
         }
       },
-      {
-        root: null,
-        threshold: 0.1,
-      }
+      { threshold: 0.1 }
     );
-    
-    if (containerRef.current) {
-      observer.observe(containerRef.current);
-    }
-    
-    return () => {
-      if (containerRef.current) {
-        observer.unobserve(containerRef.current);
-      }
-    };
+
+    observer.observe(node);
+    return () => observer.disconnect();
   }, []);
-  
+
   return (
-    <div className="pt-24 pb-16 md:pt-32 md:pb-24">
-      <div 
-        ref={containerRef} 
-        className="container mx-auto px-6 transition-all duration-1000 ease-out opacity-0 translate-y-10"
+    <section className="relative overflow-hidden pt-28 pb-16 sm:pt-32 md:pt-40 md:pb-24">
+      {/* Soft brand wash behind the fold. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[32rem] bg-[radial-gradient(60%_50%_at_50%_0%,hsl(var(--gp-brand)/0.10),transparent_70%)]"
+      />
+
+      <div
+        ref={containerRef}
+        className="container mx-auto px-5 opacity-0 translate-y-10 transition-all duration-1000 ease-out sm:px-6"
       >
-        <div className="flex flex-col items-center text-center max-w-4xl mx-auto">
+        <div className="mx-auto flex max-w-4xl flex-col items-center text-center">
           <Chip variant="primary" size="md" className="mb-6">
-            Web3 Payments Reimagined
+            Payments &amp; escrow on one rail
           </Chip>
-          
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight leading-tight md:leading-tight mb-6">
-            The simplest way to accept <span className="text-web3-blue">crypto payments</span> with escrow protection
+
+          <h1 className="text-balance text-[2rem] font-bold leading-[1.1] tracking-tightest text-ink sm:text-5xl md:text-6xl">
+            The simplest way to accept{' '}
+            <span className="text-brand">crypto payments</span> with escrow protection
           </h1>
-          
-          <p className="text-lg md:text-xl text-gray-600 mb-10 max-w-2xl">
-            GuardPay provides merchants and customers a secure, transparent payment gateway with built-in escrow services for peace of mind.
+
+          <p className="mt-6 max-w-2xl text-pretty text-base text-ink-soft sm:text-lg md:text-xl">
+            Share a link, get paid on-chain, and settle straight to your own wallet. For deals that
+            need trust, funds sit in escrow until both sides are satisfied.
           </p>
-          
-          <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-            <Link to="/login">
-            <Button className="px-6 py-6 text-base font-medium rounded-xl transition-all hover:translate-y-[-2px] bg-web3-blue text-white hover:bg-opacity-90">
-              Start Accepting Payments
-              <ArrowRight size={18} className="ml-2" />
-            </Button>
+
+          <div className="mt-9 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:gap-4">
+            <Link href="/login" className="w-full sm:w-auto">
+              <Button size="lg" className="h-12 w-full px-6 text-base font-medium sm:w-auto">
+                Start accepting payments
+                <ArrowRight size={18} className="ml-2" aria-hidden />
+              </Button>
             </Link>
-            <Button variant="outline" className="px-6 py-6 text-base font-medium rounded-xl border-gray-200 text-gray-700 hover:bg-gray-50">
-              Explore Escrow Service
-              <Shield size={18} className="ml-2" />
-            </Button>
+            <Link href="/escrow" className="w-full sm:w-auto">
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-12 w-full px-6 text-base font-medium sm:w-auto"
+              >
+                Explore escrow
+                <ShieldCheck size={18} className="ml-2" aria-hidden />
+              </Button>
+            </Link>
           </div>
-          
-          <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-12">
-            {[
-              { label: "Merchants", value: "2,500+" },
-              { label: "Daily Transactions", value: "10,000+" },
-              { label: "Payment Volume", value: "$25M+" },
-              { label: "Supported Chains", value: "15+" }
-            ].map((stat, index) => (
-              <div key={index} className="flex flex-col items-center">
-                <p className="text-2xl md:text-3xl font-bold text-web3-blue mb-1">{stat.value}</p>
-                <p className="text-sm text-gray-500">{stat.label}</p>
+
+          <dl className="mt-14 grid w-full grid-cols-2 gap-x-6 gap-y-8 border-t border-border pt-10 md:mt-16 md:grid-cols-4 md:gap-12">
+            {capabilities.map((item) => (
+              <div key={item.label} className="flex flex-col items-center">
+                <dt className="sr-only">{item.label}</dt>
+                <dd className="mb-1 text-xl font-bold tracking-tight text-brand sm:text-2xl md:text-3xl">
+                  {item.value}
+                </dd>
+                <p className="text-xs text-ink-soft sm:text-sm">{item.label}</p>
               </div>
             ))}
-          </div>
+          </dl>
         </div>
       </div>
-    </div>
+    </section>
   );
 };
 

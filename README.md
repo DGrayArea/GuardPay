@@ -44,8 +44,8 @@ pnpm dev:all
 ```
 
 **Access:**
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:3001
+- Frontend (Next.js): http://localhost:3000
+- Backend API (Express): http://localhost:3001
 
 ---
 
@@ -92,7 +92,7 @@ Settings → Developer Settings → Enable Testnet Mode → Switch to Devnet
 ## 🎯 Test Your First Payment
 
 ### 1. Login
-- Open http://localhost:5173
+- Open http://localhost:3000
 - Connect MetaMask or Phantom wallet
 - Sign the authentication message
 
@@ -271,7 +271,10 @@ CONFIRMATION_BLOCKS=3    # Wait for 3 confirmations
 ### Frontend Environment (`.env`)
 
 ```bash
-VITE_API_URL=http://localhost:3001
+NEXT_PUBLIC_API_URL=http://localhost:3001
+NEXT_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
+# Required for WalletConnect-based wallets — get one at https://cloud.reown.com
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=
 ```
 
 ---
@@ -354,13 +357,17 @@ GuardPay/
 │   │       └── auth.middleware.ts
 │   └── .env                  # Add MASTER_SEED here!
 │
-├── src/                      # Frontend
-│   ├── lib/
-│   │   └── api.ts           # HTTP client
-│   ├── pages/
-│   │   ├── Login.tsx        # Wallet auth
-│   │   ├── Dashboard.tsx    # Merchant dashboard
-│   │   └── Invoice.tsx      # Checkout page
+├── app/                      # Next.js App Router (routes only)
+│   ├── page.tsx             # Landing
+│   ├── login/               # Wallet auth
+│   ├── pay/[id]/            # Shareable payment link
+│   ├── invoice/[id]/        # Checkout page
+│   ├── escrow/
+│   └── dashboard/           # Merchant dashboard (guarded)
+│
+├── src/                      # Components, not routes
+│   ├── lib/api.ts           # HTTP client
+│   ├── views/               # Page-level components
 │   └── components/          # UI components
 │
 └── package.json             # Run scripts
@@ -383,10 +390,14 @@ Deploy to: Railway, Render, DigitalOcean, AWS
 ### Frontend
 
 ```bash
-pnpm build
+pnpm build && pnpm start
 ```
 
-Deploy `dist/` folder to: Vercel, Netlify, Cloudflare Pages
+Deploy to: Vercel, Netlify, Cloudflare Pages.
+
+> The backend must stay a separate always-on process. Its payment monitor,
+> sweep worker and webhook retries are long-running intervals that do not
+> survive serverless function invocations.
 
 ### Environment Variables
 
@@ -423,8 +434,10 @@ Master Seed → HD Node → m/44'/60'/0'/0/0 → Address 1
 
 **Solana:**
 ```
-Generate random keypair → Store in memory
+Generate random keypair → Secret key persisted in the database
 ```
+(An in-memory keypair would make any payment that arrives after a restart
+permanently unspendable.)
 
 ---
 
@@ -432,13 +445,13 @@ Generate random keypair → Store in memory
 
 **Backend:**
 - Node.js + Express + TypeScript
-- SQLite (sql.js)
+- SQLite (better-sqlite3, WAL mode)
 - ethers.js (EVM)
 - @solana/web3.js
 - JWT authentication
 
 **Frontend:**
-- React + TypeScript + Vite
+- Next.js 15 (App Router) + React + TypeScript
 - TailwindCSS + shadcn/ui
 - Wagmi + ConnectKit
 - Solana Wallet Adapter

@@ -1,0 +1,19 @@
+allowBuilds:
+  # Build tooling.
+  '@swc/core': true
+  esbuild: true
+  # Optional ws/protobuf speedups — pure-JS fallbacks are fine.
+  bufferutil: false
+  utf-8-validate: false
+  protobufjs: false
+  # Hardware-wallet and Stellar natives. The app only registers the Phantom and
+  # Solflare adapters, so these are not needed.
+  '@stellar/stellar-sdk': false
+  blake-hash: false
+  tiny-secp256k1: false
+  usb: false
+  # Native resolver used by eslint tooling.
+  unrs-resolver: true
+  # WalletConnect/Reown modal assets.
+  '@reown/appkit': true
+  bigint-buffer: false

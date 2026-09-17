@@ -1,16 +1,32 @@
+'use client';
 
-import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 
-const RequireAuth: React.FC = () => {
-  const { isAuthenticated } = useAuth();
+/**
+ * Client-side guard for merchant pages. Auth state lives in localStorage, so
+ * the check has to run after hydration rather than during a server render.
+ */
+const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  if (isLoading || !isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-web3-blue" />
+      </div>
+    );
   }
 
-  return <Outlet />;
+  return <>{children}</>;
 };
 
 export default RequireAuth;

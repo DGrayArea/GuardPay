@@ -1,6 +1,7 @@
+'use client';
 
 import React, { useEffect, useState } from 'react';
-import { BarChart3, ArrowUp, ArrowDown, Users, CreditCard, Loader2 } from 'lucide-react';
+import { Users, CreditCard, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -10,12 +11,24 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import Chip from '@/components/ui/Chip';
-import { Link } from 'react-router-dom';
-import { api, Transaction } from '@/lib/api';
+import Link from 'next/link';
+import { api, Stats, Transaction } from '@/lib/api';
+import RevenueChart from '@/components/dashboard/charts/RevenueChart';
+import ChainVolumeChart from '@/components/dashboard/charts/ChainVolumeChart';
 
 const DashboardHome: React.FC = () => {
-  const [stats, setStats] = useState({ totalVolume: 0, totalTx: 0, activeEscrows: 0 });
+  const [stats, setStats] = useState<Stats>({
+    totalVolume: 0,
+    grossVolume: 0,
+    feesPaid: 0,
+    totalTransactions: 0,
+    totalTx: 0,
+    pendingInvoices: 0,
+    activeEscrows: 0,
+    recentTransactions: [],
+  });
   const [recentTx, setRecentTx] = useState<Transaction[]>([]);
+  const [allTx, setAllTx] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,6 +37,7 @@ const DashboardHome: React.FC = () => {
         const s = await api.getStats();
         const tx = await api.getTransactions();
         setStats(s);
+        setAllTx(tx);
         setRecentTx(tx.slice(0, 5));
         setLoading(false);
     };
@@ -31,9 +45,9 @@ const DashboardHome: React.FC = () => {
   }, []);
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+    <div className="space-y-6 p-4 sm:p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">Dashboard</h1>
         <div className="flex items-center space-x-4">
           <Chip variant="primary" size="sm">Premium Merchant</Chip>
           <Button variant="outline" size="sm">Create Invoice</Button>
@@ -51,11 +65,12 @@ const DashboardHome: React.FC = () => {
           </CardHeader>
           <CardContent>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : (
-                <div className="text-2xl font-bold">${stats.totalVolume.toFixed(2)}</div>
+                <div className="text-xl font-bold tracking-tight text-ink sm:text-2xl">${stats.totalVolume.toFixed(2)}</div>
             )}
-            <div className="flex items-center mt-1 text-xs text-green-600">
-              <ArrowUp className="mr-1 h-3 w-3" />
-              <span>Live Data</span>
+            <div className="mt-1 text-xs text-ink-soft">
+              {stats.feesPaid > 0
+                ? `Net of $${stats.feesPaid.toFixed(2)} in fees`
+                : 'Net of platform fees'}
             </div>
           </CardContent>
         </Card>
@@ -67,12 +82,9 @@ const DashboardHome: React.FC = () => {
           </CardHeader>
           <CardContent>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : (
-                <div className="text-2xl font-bold">{stats.totalTx}</div>
+                <div className="text-xl font-bold tracking-tight text-ink sm:text-2xl">{stats.totalTx}</div>
             )}
-            <div className="flex items-center mt-1 text-xs text-green-600">
-              <ArrowUp className="mr-1 h-3 w-3" />
-              <span>Lifetime</span>
-            </div>
+            <div className="mt-1 text-xs text-ink-soft">Lifetime</div>
           </CardContent>
         </Card>
         <Card>
@@ -83,24 +95,23 @@ const DashboardHome: React.FC = () => {
           </CardHeader>
           <CardContent>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : (
-                <div className="text-2xl font-bold">{stats.activeEscrows}</div>
+                <div className="text-xl font-bold tracking-tight text-ink sm:text-2xl">{stats.activeEscrows}</div>
             )}
-            <div className="flex items-center mt-1 text-xs text-blue-600">
-              <span>Pending Action</span>
-            </div>
+            <div className="mt-1 text-xs text-ink-soft">Pending action</div>
           </CardContent>
         </Card>
         <Card>
-            {/* Keeping one dummy for layout balance as we don't have cust count yet */}
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Customers
+              Awaiting payment
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">--</div>
-            <div className="flex items-center mt-1 text-xs text-gray-400">
-               Coming Soon
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : (
+                <div className="text-xl font-bold tracking-tight text-ink sm:text-2xl">{stats.pendingInvoices}</div>
+            )}
+            <div className="mt-1 flex items-center text-xs text-ink-soft">
+              <span>Open invoices</span>
             </div>
           </CardContent>
         </Card>
@@ -114,10 +125,13 @@ const DashboardHome: React.FC = () => {
             <CardDescription>Transaction volume over the last 30 days</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-80 flex items-center justify-center bg-gray-50 rounded-md">
-              <BarChart3 size={48} className="text-gray-300" />
-              <span className="ml-2 text-gray-400">Charts coming in v2</span>
-            </div>
+            {loading ? (
+              <div className="flex h-72 items-center justify-center">
+                <Loader2 className="h-5 w-5 animate-spin text-ink-soft" />
+              </div>
+            ) : (
+              <RevenueChart transactions={allTx} />
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -128,23 +142,40 @@ const DashboardHome: React.FC = () => {
           <CardContent>
             <div className="space-y-4">
               {loading ? <div className="text-center py-4"><Loader2 className="animate-spin mx-auto" /></div> : recentTx.map((tx) => (
-                <div key={tx.id} className="flex items-start justify-between pb-4 border-b border-gray-100 last:border-0 last:pb-0">
-                  <div>
-                    <div className="font-medium">{tx.customer ? `${tx.customer.slice(0,4)}...` : 'Unknown'}</div>
-                    <div className="text-sm text-gray-500">{new Date(tx.timestamp).toLocaleDateString()}</div>
+                <div key={tx.id} className="flex items-start justify-between gap-3 border-b pb-4 last:border-0 last:pb-0">
+                  <div className="min-w-0">
+                    {/* Prefer the product name; fall back to the payer address.
+                        Not every chain exposes a sender we can attribute. */}
+                    <div className="truncate font-medium text-ink">{tx.linkTitle || 'Payment'}</div>
+                    <div className="truncate text-sm text-ink-soft">
+                      {/* Short month/day — the full locale date does not fit
+                          this column and truncating a date is unreadable. */}
+                      {new Date(tx.timestamp).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                      {tx.customer && (
+                        <span className="ml-2 font-mono text-xs">
+                          {tx.customer.slice(0, 6)}…
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-medium">{tx.amount} {tx.currency}</div>
+                  <div className="shrink-0 text-right">
+                    <div className="text-sm font-medium tabular-nums text-ink">
+                      {Number(tx.amount).toFixed(2)}
+                      <span className="ml-1 text-xs font-normal text-ink-soft">{tx.currency}</span>
+                    </div>
                     <div className={`text-xs ${
-                      tx.status === 'completed' ? 'text-green-600' : 
-                      tx.status === 'pending' ? 'text-amber-600' : 'text-red-600'
+                      tx.status === 'completed' ? 'text-ok' :
+                      tx.status === 'failed' ? 'text-destructive' : 'text-warn'
                     }`}>
                       {tx.status}
                     </div>
                   </div>
                 </div>
               ))}
-              <Link to="/dashboard/payments">
+              <Link href="/dashboard/payments">
                 <Button variant="link" className="p-0 h-auto w-full justify-start mt-4">
                   View all transactions
                 </Button>
@@ -153,6 +184,23 @@ const DashboardHome: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Volume by chain */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Volume by chain</CardTitle>
+          <CardDescription>Completed payments, all time</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex h-40 items-center justify-center">
+              <Loader2 className="h-5 w-5 animate-spin text-ink-soft" />
+            </div>
+          ) : (
+            <ChainVolumeChart transactions={allTx} />
+          )}
+        </CardContent>
+      </Card>
 
       {/* Quick Access Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -167,7 +215,7 @@ const DashboardHome: React.FC = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Link to="/dashboard/links">
+            <Link href="/dashboard/links">
                 <Button variant="outline" className="w-full">
                 Manage Links
                 </Button>
@@ -186,7 +234,7 @@ const DashboardHome: React.FC = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Link to="/dashboard/settings">
+            <Link href="/dashboard/settings">
                 <Button variant="outline" className="w-full">
                 Go to Settings
                 </Button>

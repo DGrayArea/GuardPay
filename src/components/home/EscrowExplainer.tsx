@@ -1,3 +1,4 @@
+'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,11 @@ const EscrowExplainer: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0);
   
   useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      containerRef.current?.classList.remove('opacity-0', 'translate-y-10');
+      return;
+    }
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -65,10 +71,10 @@ const EscrowExplainer: React.FC = () => {
   ];
 
   return (
-    <div id="escrow" className="py-16 md:py-24 bg-gradient-to-b from-white to-gray-50">
+    <div id="escrow" className="py-16 sm:py-20 md:py-24 bg-gradient-to-b from-white to-gray-50">
       <div 
         ref={containerRef}
-        className="container mx-auto px-6 transition-all duration-1000 ease-out opacity-0 translate-y-10"
+        className="container mx-auto px-5 sm:px-6 transition-all duration-1000 ease-out opacity-0 translate-y-10"
       >
         <div className="flex flex-col md:flex-row-reverse items-center md:items-start justify-between gap-12 md:gap-8">
           <div className="flex flex-col items-start md:max-w-lg">
@@ -76,8 +82,8 @@ const EscrowExplainer: React.FC = () => {
               <Shield size={12} className="mr-1.5" />
               Escrow Protection
             </Chip>
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">Secure transactions with smart contract escrow</h2>
-            <p className="text-lg text-gray-600 mb-8">
+            <h2 className="text-balance text-[1.75rem] sm:text-3xl md:text-4xl font-bold tracking-tight text-ink mb-5 sm:mb-6">Secure transactions with smart contract escrow</h2>
+            <p className="text-lg text-ink-soft mb-8">
               Our escrow service protects both buyers and sellers by holding funds in a secure smart contract until both parties fulfill their obligations.
             </p>
             
@@ -92,7 +98,7 @@ const EscrowExplainer: React.FC = () => {
               ))}
             </div>
             
-            <Button className="bg-web3-indigo hover:bg-opacity-90">
+            <Button className="bg-escrow text-white hover:bg-escrow/90">
               Learn More About Escrow
               <ArrowRight size={16} className="ml-2" />
             </Button>
@@ -102,7 +108,7 @@ const EscrowExplainer: React.FC = () => {
             <div className="relative p-6 glass-card rounded-2xl shadow-elevation-2 overflow-hidden">
               <div className="mb-8">
                 <h3 className="text-xl font-medium mb-2">How Escrow Works</h3>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-ink-soft">
                   Our escrow service uses secure smart contracts to protect all parties in a transaction.
                 </p>
               </div>
@@ -120,17 +126,17 @@ const EscrowExplainer: React.FC = () => {
                     >
                       <div 
                         className={`absolute left-0 h-8 w-8 rounded-full flex items-center justify-center z-10 ${
-                          currentStep === index ? 'bg-web3-indigo text-white' : 'bg-gray-100 text-gray-400'
+                          currentStep === index ? 'bg-escrow text-white' : 'bg-gray-100 text-gray-400'
                         }`}
                       >
                         {step.icon}
                       </div>
                       
                       <div className="ml-4">
-                        <h4 className={`font-medium mb-1 ${currentStep === index ? 'text-black' : 'text-gray-600'}`}>
+                        <h4 className={`font-medium mb-1 ${currentStep === index ? 'text-black' : 'text-ink-soft'}`}>
                           {step.title}
                         </h4>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-ink-soft">
                           {step.description}
                         </p>
                       </div>

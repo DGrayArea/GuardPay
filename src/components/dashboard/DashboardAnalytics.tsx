@@ -12,9 +12,9 @@ import { BarChart3, PieChart, LineChart, BarChart, ArrowUp, ArrowDown } from 'lu
 
 const DashboardAnalytics: React.FC = () => {
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Analytics</h1>
+    <div className="space-y-6 p-4 sm:p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">Analytics</h1>
         <Tabs defaultValue="30d">
           <TabsList>
             <TabsTrigger value="7d">7 days</TabsTrigger>
@@ -43,7 +43,7 @@ const DashboardAnalytics: React.FC = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
+              <div className="text-xl font-bold tracking-tight text-ink sm:text-2xl">{stat.value}</div>
               <div className={`flex items-center mt-1 text-xs ${
                 stat.change > 0 ? 'text-green-600' : 'text-red-600'
               }`}>
@@ -70,8 +70,8 @@ const DashboardAnalytics: React.FC = () => {
         <CardContent>
           <div className="h-80 flex flex-col items-center justify-center bg-gray-50 rounded-md">
             <BarChart3 size={48} className="text-gray-300 mb-2" />
-            <span className="text-gray-400">Chart visualization placeholder</span>
-            <span className="text-xs text-gray-400 mt-2">Data would be rendered here using Recharts library</span>
+            <span className="text-ink-soft">Chart visualization placeholder</span>
+            <span className="text-xs text-ink-soft mt-2">Data would be rendered here using Recharts library</span>
           </div>
         </CardContent>
       </Card>
@@ -88,7 +88,7 @@ const DashboardAnalytics: React.FC = () => {
           <CardContent>
             <div className="h-64 flex flex-col items-center justify-center bg-gray-50 rounded-md">
               <PieChart size={40} className="text-gray-300 mb-2" />
-              <span className="text-gray-400">Pie chart placeholder</span>
+              <span className="text-ink-soft">Pie chart placeholder</span>
               <div className="mt-4 grid grid-cols-2 gap-4 w-full max-w-xs">
                 <div className="flex items-center">
                   <div className="w-3 h-3 rounded-full bg-web3-blue mr-2"></div>
@@ -113,7 +113,7 @@ const DashboardAnalytics: React.FC = () => {
           <CardContent>
             <div className="h-64 flex flex-col items-center justify-center bg-gray-50 rounded-md">
               <PieChart size={40} className="text-gray-300 mb-2" />
-              <span className="text-gray-400">Pie chart placeholder</span>
+              <span className="text-ink-soft">Pie chart placeholder</span>
               <div className="mt-4 grid grid-cols-2 gap-4 w-full max-w-xs">
                 <div className="flex items-center">
                   <div className="w-3 h-3 rounded-full bg-blue-500 mr-2"></div>
@@ -157,7 +157,7 @@ const DashboardAnalytics: React.FC = () => {
                 ].map((customer, index) => (
                   <div key={index} className="flex justify-between">
                     <span>{customer.name}</span>
-                    <span className="text-gray-500">{customer.volume}</span>
+                    <span className="text-ink-soft">{customer.volume}</span>
                   </div>
                 ))}
               </div>
@@ -184,7 +184,7 @@ const DashboardAnalytics: React.FC = () => {
               <h3 className="font-medium mb-2">Customer Growth</h3>
               <div className="flex flex-col items-center justify-center h-32">
                 <LineChart size={32} className="text-gray-300 mb-2" />
-                <span className="text-xs text-gray-500">+24% growth this month</span>
+                <span className="text-xs text-ink-soft">+24% growth this month</span>
               </div>
             </div>
           </div>

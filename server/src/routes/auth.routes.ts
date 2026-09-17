@@ -1,10 +1,40 @@
 import { Router, Request, Response } from 'express';
+import crypto from 'crypto';
 import { ethers } from 'ethers';
 import { v4 as uuidv4 } from 'uuid';
+import nacl from 'tweetnacl';
+import bs58 from 'bs58';
 import { queries } from '../config/database';
 import { generateToken, generateAPIKey } from '../middleware/auth.middleware';
 
-const router = Router();
+const isEvmAddress = (address: string) => /^0x[a-fA-F0-9]{40}$/.test(address);
+
+/**
+ * Verify a wallet signature over `message`.
+ * EVM wallets sign with secp256k1; Solana wallets sign with ed25519, which
+ * ethers cannot check — each needs its own verification path.
+ */
+function verifyWalletSignature(address: string, message: string, signature: string): boolean {
+  if (isEvmAddress(address)) {
+    try {
+      return ethers.verifyMessage(message, signature).toLowerCase() === address.toLowerCase();
+    } catch {
+      return false;
+    }
+  }
+
+  try {
+    return nacl.sign.detached.verify(
+      new TextEncoder().encode(message),
+      Buffer.from(signature, 'base64'),
+      bs58.decode(address)
+    );
+  } catch {
+    return false;
+  }
+}
+
+const router: Router = Router();
 
 // Store nonces temporarily (in production, use Redis)
 const nonces = new Map<string, { nonce: string; timestamp: number }>();
@@ -19,11 +49,12 @@ router.post('/nonce', (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Wallet address required' });
   }
 
-  // Generate random nonce
-  const nonce = Math.random().toString(36).substring(2, 15);
-  
-  // Store nonce with 5 minute expiration
-  nonces.set(walletAddress.toLowerCase(), {
+  // Math.random() is not a CSPRNG; a login challenge must not be guessable.
+  const nonce = crypto.randomBytes(16).toString('hex');
+
+  // Store nonce with 5 minute expiration. Solana addresses are case-sensitive
+  // base58, so only EVM addresses get lowercased.
+  nonces.set(isEvmAddress(walletAddress) ? walletAddress.toLowerCase() : walletAddress, {
     nonce,
     timestamp: Date.now(),
   });
@@ -49,45 +80,46 @@ router.post('/verify', async (req: Request, res: Response) => {
   }
 
   try {
-    const addressLower = walletAddress.toLowerCase();
-    const nonceData = nonces.get(addressLower);
+    // Solana addresses are base58 and case-sensitive, so only EVM addresses
+    // may be lowercased when looking up the nonce.
+    const nonceKey = isEvmAddress(walletAddress) ? walletAddress.toLowerCase() : walletAddress;
+    const nonceData = nonces.get(nonceKey);
 
     if (!nonceData) {
       return res.status(400).json({ error: 'Nonce not found or expired' });
     }
 
-    // Verify signature
     const message = `Sign this message to authenticate with GuardPay.\n\nNonce: ${nonceData.nonce}`;
-    const recoveredAddress = ethers.verifyMessage(message, signature);
 
-    if (recoveredAddress.toLowerCase() !== addressLower) {
+    if (!verifyWalletSignature(walletAddress, message, signature)) {
       return res.status(401).json({ error: 'Invalid signature' });
     }
 
     // Delete used nonce
-    nonces.delete(addressLower);
+    nonces.delete(nonceKey);
 
-    // Check if merchant exists
+    // Every wallet is a user. Being a merchant is a role taken on later, when
+    // they create their first payment link — not a precondition for paying or
+    // for being a party to an escrow.
+    let user = queries.getUserByWallet.get(walletAddress) as any;
+    if (!user) {
+      const userId = uuidv4();
+      queries.createUser.run(userId, walletAddress, null);
+      user = queries.getUserById.get(userId);
+    }
+
+    // The merchant record backs the seller-side dashboard. It is still created
+    // eagerly so existing JWT-keyed routes keep working.
     let merchant = queries.getMerchantByWallet.get(walletAddress) as any;
 
     if (!merchant) {
-      // Create new merchant
       const merchantId = uuidv4();
       const apiKey = generateAPIKey();
 
-      queries.createMerchant.run(
-        merchantId,
-        walletAddress,
-        apiKey,
-        'Merchant',
-        '',
-        ''
-      );
-
+      queries.createMerchant.run(merchantId, walletAddress, apiKey, 'Merchant', '', '');
       merchant = queries.getMerchantById.get(merchantId);
     }
 
-    // Generate JWT token
     const token = generateToken(merchant.id);
 
     res.json({
@@ -96,6 +128,12 @@ router.post('/verify', async (req: Request, res: Response) => {
         id: merchant.id,
         walletAddress: merchant.wallet_address,
         merchantName: merchant.merchant_name,
+      },
+      user: {
+        id: user.id,
+        walletAddress: user.wallet_address,
+        displayName: user.display_name,
+        avatarUrl: user.avatar_url,
       },
     });
   } catch (error) {

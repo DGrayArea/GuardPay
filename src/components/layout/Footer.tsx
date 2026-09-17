@@ -1,29 +1,25 @@
 import React from 'react';
-import { Wallet, Twitter, Github, Linkedin } from 'lucide-react';
+import { Twitter, Github, Linkedin } from 'lucide-react';
+import { Logo } from '@/components/brand/Logo';
 
 const Footer: React.FC = () => {
   return (
-    <footer className="bg-gray-50 border-t border-gray-100 py-16">
-      <div className="container mx-auto px-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
+    <footer className="border-t border-border bg-muted/40 py-14 sm:py-16">
+      <div className="container mx-auto px-5 sm:px-6">
+        <div className="grid grid-cols-2 gap-8 md:grid-cols-4 md:gap-10">
           <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <div className="h-8 w-8 rounded-lg bg-web3-skyBlue flex items-center justify-center">
-                <Wallet className="h-5 w-5 text-web3-blue" />
-              </div>
-              <span className="text-xl font-semibold">GuardPay</span>
-            </div>
+            <Logo wordClassName="text-xl" />
             <p className="text-sm text-gray-500 pr-4">
               A secure web3 payment gateway and escrow service for modern businesses and customers.
             </p>
             <div className="flex space-x-4 pt-2">
-              <a href="#" className="text-gray-400 hover:text-gray-600 transition-colors">
+              <a href="#" aria-label="GuardPay on X" className="text-gray-400 hover:text-gray-600 transition-colors">
                 <Twitter size={18} />
               </a>
-              <a href="#" className="text-gray-400 hover:text-gray-600 transition-colors">
+              <a href="#" aria-label="GuardPay on GitHub" className="text-gray-400 hover:text-gray-600 transition-colors">
                 <Github size={18} />
               </a>
-              <a href="#" className="text-gray-400 hover:text-gray-600 transition-colors">
+              <a href="#" aria-label="GuardPay on LinkedIn" className="text-gray-400 hover:text-gray-600 transition-colors">
                 <Linkedin size={18} />
               </a>
             </div>

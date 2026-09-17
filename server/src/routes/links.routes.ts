@@ -2,11 +2,20 @@ import { Router, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { queries } from '../config/database';
 import { authenticateJWT, AuthRequest } from '../middleware/auth.middleware';
+import { getAsset, defaultChainFor, listAssets } from '../config/assets';
 
-const router = Router();
+const router: Router = Router();
 
 // All routes require authentication
 router.use(authenticateJWT);
+
+/**
+ * Assets this deployment can actually settle. The merchant UI builds its
+ * picker from this rather than hardcoding a list that can drift.
+ */
+router.get('/assets', (_req: AuthRequest, res: Response) => {
+  res.json(listAssets());
+});
 
 /**
  * Get all payment links for merchant
@@ -31,6 +40,20 @@ router.post('/', (req: AuthRequest, res: Response) => {
     if (!title || !price || !currency || !crypto) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
+    if (!(Number(price) > 0)) {
+      return res.status(400).json({ error: 'Price must be greater than zero' });
+    }
+
+    // Settle on the requested chain, or the asset's natural home.
+    const chain = (req.body.chain || defaultChainFor(crypto)).toUpperCase();
+    const asset = getAsset(chain, crypto);
+
+    if (!asset) {
+      return res.status(400).json({
+        error: `${crypto} is not settleable on ${chain}`,
+        supported: listAssets(),
+      });
+    }
 
     const linkId = `pl_${uuidv4().replace(/-/g, '').substring(0, 16)}`;
 
@@ -40,9 +63,12 @@ router.post('/', (req: AuthRequest, res: Response) => {
       title,
       price,
       currency,
-      crypto,
+      asset.symbol,
       walletAddress || null,
-      solanaAddress || null
+      solanaAddress || null,
+      chain,
+      asset.address,
+      asset.decimals
     );
 
     const newLink = queries.getLinkById.get(linkId);
@@ -93,18 +119,26 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
 
     const { title, price, currency, crypto, walletAddress, solanaAddress } = req.body;
 
-    const db = require('../config/database').db;
-    db.prepare(`
-      UPDATE payment_links
-      SET title = ?, price = ?, currency = ?, crypto = ?, wallet_address = ?, solana_address = ?
-      WHERE id = ?
-    `).run(
+    // Changing the asset must re-resolve the token address and decimals too,
+    // or the link would quote one asset and watch for another.
+    const nextSymbol = crypto || link.crypto;
+    const nextChain = (req.body.chain || link.chain || defaultChainFor(nextSymbol)).toUpperCase();
+    const asset = getAsset(nextChain, nextSymbol);
+
+    if (!asset) {
+      return res.status(400).json({ error: `${nextSymbol} is not settleable on ${nextChain}` });
+    }
+
+    queries.updateLink.run(
       title || link.title,
       price !== undefined ? price : link.price,
       currency || link.currency,
-      crypto || link.crypto,
+      asset.symbol,
       walletAddress !== undefined ? walletAddress : link.wallet_address,
       solanaAddress !== undefined ? solanaAddress : link.solana_address,
+      nextChain,
+      asset.address,
+      asset.decimals,
       req.params.id
     );
 

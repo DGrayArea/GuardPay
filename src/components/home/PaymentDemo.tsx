@@ -1,3 +1,4 @@
+'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,11 @@ const PaymentDemo: React.FC = () => {
   const [completed, setCompleted] = useState(false);
   
   useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      containerRef.current?.classList.remove('opacity-0', 'translate-y-10');
+      return;
+    }
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -63,16 +69,16 @@ const PaymentDemo: React.FC = () => {
   ];
 
   return (
-    <div id="payments" className="py-16 md:py-24">
+    <div id="payments" className="py-16 sm:py-20 md:py-24">
       <div 
         ref={containerRef}
-        className="container mx-auto px-6 transition-all duration-1000 ease-out opacity-0 translate-y-10"
+        className="container mx-auto px-5 sm:px-6 transition-all duration-1000 ease-out opacity-0 translate-y-10"
       >
         <div className="flex flex-col md:flex-row items-center md:justify-between gap-12 md:gap-8">
           <div className="flex flex-col items-start md:max-w-md">
             <Chip variant="primary" className="mb-6">Payment Demo</Chip>
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">Complete transactions in just seconds</h2>
-            <p className="text-lg text-gray-600 mb-8">
+            <h2 className="text-balance text-[1.75rem] sm:text-3xl md:text-4xl font-bold tracking-tight text-ink mb-5 sm:mb-6">Complete transactions in just seconds</h2>
+            <p className="text-lg text-ink-soft mb-8">
               Experience how easy it is to make crypto payments with our lightning-fast checkout process designed for the modern web.
             </p>
             <ul className="space-y-3 mb-8">
@@ -108,7 +114,7 @@ const PaymentDemo: React.FC = () => {
                         >
                           {i < step ? <Check size={18} /> : i}
                         </div>
-                        <span className={`text-xs ${i === step ? 'text-web3-indigo font-medium' : 'text-gray-500'}`}>
+                        <span className={`text-xs ${i === step ? 'text-web3-indigo font-medium' : 'text-ink-soft'}`}>
                           {i === 1 ? 'Connect' : i === 2 ? 'Select' : 'Confirm'}
                         </span>
                       </div>
@@ -119,13 +125,13 @@ const PaymentDemo: React.FC = () => {
                     {step === 1 && (
                       <div className="space-y-6 animate-fade-in">
                         <h3 className="text-lg font-medium">Connect Your Wallet</h3>
-                        <p className="text-sm text-gray-500">Select your preferred wallet to continue with the payment.</p>
+                        <p className="text-sm text-ink-soft">Select your preferred wallet to continue with the payment.</p>
                         
                         <div className="space-y-3">
                           {['MetaMask', 'WalletConnect', 'Coinbase Wallet'].map((wallet, i) => (
                             <button 
                               key={i} 
-                              className="w-full p-4 border border-gray-200 rounded-lg flex items-center justify-between hover:border-web3-indigo hover:bg-gray-50 transition-colors"
+                              className="w-full p-4 border border-gray-200 rounded-lg flex items-center justify-between hover:border-web3-indigo hover:bg-muted/40 transition-colors"
                             >
                               <span>{wallet}</span>
                               <ChevronRight size={18} className="text-gray-400" />
@@ -138,19 +144,19 @@ const PaymentDemo: React.FC = () => {
                     {step === 2 && (
                       <div className="space-y-6 animate-fade-in">
                         <h3 className="text-lg font-medium">Select Currency</h3>
-                        <p className="text-sm text-gray-500">Choose which cryptocurrency to use for this payment.</p>
+                        <p className="text-sm text-ink-soft">Choose which cryptocurrency to use for this payment.</p>
                         
                         <div className="space-y-3">
                           {currencies.map((currency, i) => (
                             <button 
                               key={i} 
-                              className="w-full p-4 border border-gray-200 rounded-lg flex items-center justify-between hover:border-web3-indigo hover:bg-gray-50 transition-colors"
+                              className="w-full p-4 border border-gray-200 rounded-lg flex items-center justify-between hover:border-web3-indigo hover:bg-muted/40 transition-colors"
                             >
                               <div className="flex items-center">
                                 <span className="text-xl mr-3">{currency.logo}</span>
                                 <div>
                                   <div className="font-medium">{currency.name}</div>
-                                  <div className="text-xs text-gray-500">Balance: {currency.balance}</div>
+                                  <div className="text-xs text-ink-soft">Balance: {currency.balance}</div>
                                 </div>
                               </div>
                               <ChevronRight size={18} className="text-gray-400" />
@@ -163,19 +169,19 @@ const PaymentDemo: React.FC = () => {
                     {step === 3 && (
                       <div className="space-y-6 animate-fade-in">
                         <h3 className="text-lg font-medium">Confirm Payment</h3>
-                        <p className="text-sm text-gray-500">Review transaction details before confirming.</p>
+                        <p className="text-sm text-ink-soft">Review transaction details before confirming.</p>
                         
-                        <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                        <div className="bg-muted/40 rounded-lg p-4 space-y-3">
                           <div className="flex justify-between">
-                            <span className="text-sm text-gray-500">Amount</span>
+                            <span className="text-sm text-ink-soft">Amount</span>
                             <span className="font-medium">0.158 ETH</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-sm text-gray-500">Network Fee</span>
+                            <span className="text-sm text-ink-soft">Network Fee</span>
                             <span className="font-medium">0.002 ETH</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-sm text-gray-500">Service Fee</span>
+                            <span className="text-sm text-ink-soft">Service Fee</span>
                             <span className="font-medium">0.001 ETH</span>
                           </div>
                           <div className="pt-2 border-t border-gray-200 flex justify-between">
@@ -184,7 +190,7 @@ const PaymentDemo: React.FC = () => {
                           </div>
                         </div>
                         
-                        <div className="flex items-center text-sm text-gray-500">
+                        <div className="flex items-center text-sm text-ink-soft">
                           <CreditCard size={14} className="mr-2" /> 
                           Payment to: Premium Merchant Store
                         </div>
@@ -216,16 +222,16 @@ const PaymentDemo: React.FC = () => {
                     <Check size={32} className="text-green-600" />
                   </div>
                   <h3 className="text-xl font-medium mb-2">Payment Successful!</h3>
-                  <p className="text-gray-500 text-center mb-6">
+                  <p className="text-ink-soft text-center mb-6">
                     Your transaction has been processed successfully.
                   </p>
-                  <div className="bg-gray-50 w-full rounded-lg p-4 mb-6">
+                  <div className="bg-muted/40 w-full rounded-lg p-4 mb-6">
                     <div className="flex justify-between mb-2">
-                      <span className="text-sm text-gray-500">Transaction ID</span>
+                      <span className="text-sm text-ink-soft">Transaction ID</span>
                       <span className="font-mono text-sm">0x71c...8e92</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Status</span>
+                      <span className="text-sm text-ink-soft">Status</span>
                       <span className="text-green-600 text-sm font-medium">Confirmed</span>
                     </div>
                   </div>

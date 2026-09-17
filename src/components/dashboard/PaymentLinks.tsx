@@ -1,3 +1,4 @@
+'use client';
 
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -8,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Copy, ExternalLink, RefreshCw } from 'lucide-react';
-import { api, PaymentLink } from '@/lib/api';
+import { api, PaymentLink, SupportedChain } from '@/lib/api';
 import { toast } from 'sonner';
 
 const PaymentLinks: React.FC = () => {
@@ -20,6 +21,9 @@ const PaymentLinks: React.FC = () => {
   const [title, setTitle] = useState('');
   const [price, setPrice] = useState('');
   const [currency, setCurrency] = useState<'USD' | 'EUR'>('USD');
+  const [chains, setChains] = useState<SupportedChain[]>([]);
+  // "CHAIN:SYMBOL" — an asset is only meaningful together with its chain.
+  const [asset, setAsset] = useState('BASE:USDC');
 
   const fetchLinks = async () => {
     setLoading(true);
@@ -30,6 +34,7 @@ const PaymentLinks: React.FC = () => {
 
   useEffect(() => {
     fetchLinks();
+    api.getSupportedAssets().then(setChains).catch(() => {});
   }, []);
 
   const handleCreate = async () => {
@@ -38,12 +43,14 @@ const PaymentLinks: React.FC = () => {
       return;
     }
     
+    const [chain, symbol] = asset.split(':');
+
     await api.createLink({
       title,
       price: parseFloat(price),
       currency,
-      crypto: 'ETH',
-
+      crypto: symbol,
+      chain,
     });
     
     setTitle('');
@@ -60,11 +67,11 @@ const PaymentLinks: React.FC = () => {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6 p-4 sm:p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Payment Links</h1>
-          <p className="text-gray-500">Manage your product payment pages</p>
+          <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">Payment Links</h1>
+          <p className="text-ink-soft">Manage your product payment pages</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
@@ -78,18 +85,36 @@ const PaymentLinks: React.FC = () => {
               <DialogDescription>Generate a new checkout page for your product.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="title" className="text-right">Title</Label>
-                <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} className="col-span-3" placeholder="e.g. Premium Plan" />
+              <div className="grid gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+                <Label htmlFor="title" className="sm:text-right">Title</Label>
+                <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} className="sm:col-span-3" placeholder="e.g. Premium Plan" />
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="price" className="text-right">Price</Label>
-                <Input id="price" type="number" value={price} onChange={(e) => setPrice(e.target.value)} className="col-span-3" placeholder="0.00" />
+              <div className="grid gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+                <Label htmlFor="price" className="sm:text-right">Price</Label>
+                <Input id="price" type="number" value={price} onChange={(e) => setPrice(e.target.value)} className="sm:col-span-3" placeholder="0.00" />
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="currency" className="text-right">Currency</Label>
+              <div className="grid gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+                <Label htmlFor="asset" className="sm:text-right">Accept in</Label>
+                <Select value={asset} onValueChange={setAsset}>
+                  <SelectTrigger id="asset" className="sm:col-span-3">
+                    <SelectValue placeholder="Select an asset" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {chains.flatMap((c) =>
+                      c.assets.map((a) => (
+                        <SelectItem key={`${c.chain}:${a.symbol}`} value={`${c.chain}:${a.symbol}`}>
+                          {a.symbol} on {c.name}
+                          {a.stable ? ' · stable' : ''}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+                <Label htmlFor="currency" className="sm:text-right">Currency</Label>
                 <Select value={currency} onValueChange={(v: any) => setCurrency(v)}>
-                  <SelectTrigger className="col-span-3">
+                  <SelectTrigger className="sm:col-span-3">
                     <SelectValue placeholder="Select currency" />
                   </SelectTrigger>
                   <SelectContent>
@@ -112,11 +137,13 @@ const PaymentLinks: React.FC = () => {
           <CardDescription>All active payment links</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
+          <div className="-mx-4 overflow-x-auto sm:mx-0">
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Title</TableHead>
                 <TableHead>Price</TableHead>
+                <TableHead>Accepts</TableHead>
                 <TableHead>Created At</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -126,6 +153,10 @@ const PaymentLinks: React.FC = () => {
                 <TableRow key={link.id}>
                   <TableCell className="font-medium">{link.title}</TableCell>
                   <TableCell>{link.price} {link.currency}</TableCell>
+                  <TableCell className="whitespace-nowrap text-sm text-ink-soft">
+                    {link.crypto}
+                    {link.chain ? <span className="ml-1 text-xs">on {link.chain}</span> : null}
+                  </TableCell>
                   <TableCell>{new Date(link.createdAt).toLocaleDateString()}</TableCell>
                   <TableCell className="text-right space-x-2">
                     <Button variant="outline" size="icon" onClick={() => copyLink(link.id)}>
@@ -139,13 +170,14 @@ const PaymentLinks: React.FC = () => {
               ))}
               {links.length === 0 && !loading && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={5} className="text-center py-8 text-ink-soft">
                     No links created yet.
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

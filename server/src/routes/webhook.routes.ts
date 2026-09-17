@@ -5,7 +5,7 @@ import { queries } from '../config/database';
 import { authenticateJWT, AuthRequest } from '../middleware/auth.middleware';
 import { webhookService } from '../services/webhook.service';
 
-const router = Router();
+const router: Router = Router();
 
 // All routes require authentication
 router.use(authenticateJWT);
@@ -94,9 +94,7 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
  */
 router.post('/:id/test', async (req: AuthRequest, res: Response) => {
   try {
-    const db = require('../config/database').db;
-    const webhook = db.prepare('SELECT * FROM webhooks WHERE id = ? AND merchant_id = ?')
-      .get(req.params.id, req.merchantId!) as any;
+    const webhook = queries.getWebhookById.get(req.params.id, req.merchantId!) as any;
 
     if (!webhook) {
       return res.status(404).json({ error: 'Webhook not found' });

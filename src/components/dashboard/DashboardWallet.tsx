@@ -1,3 +1,4 @@
+'use client';
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -44,9 +45,9 @@ const DashboardWallet: React.FC = () => {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Wallet</h1>
+    <div className="space-y-6 p-4 sm:p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">Wallet</h1>
         <div className="flex items-center space-x-4">
           <Button variant="outline" size="sm">
             <ArrowDown size={16} className="mr-2" />
@@ -71,7 +72,7 @@ const DashboardWallet: React.FC = () => {
             <CardContent>
               <div className="flex flex-col space-y-4">
                 <div className="bg-gray-50 p-4 rounded-lg">
-                  <div className="text-sm text-gray-500 mb-1">Your Wallet Address</div>
+                  <div className="text-sm text-ink-soft mb-1">Your Wallet Address</div>
                   <div className="flex items-center justify-between">
                     <div className="font-mono text-sm break-all">{walletAddress}</div>
                     <div className="flex items-center space-x-2">
@@ -87,24 +88,24 @@ const DashboardWallet: React.FC = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-500 mb-1">Total Balance (USD)</p>
-                    <p className="text-2xl font-bold">$14,325.30</p>
+                    <p className="text-sm text-ink-soft mb-1">Total Balance (USD)</p>
+                    <p className="text-xl font-bold tracking-tight text-ink sm:text-2xl">$14,325.30</p>
                     <div className="flex items-center mt-1 text-xs text-green-600">
                       <ArrowUp className="mr-1 h-3 w-3" />
                       <span>1.2% from yesterday</span>
                     </div>
                   </div>
                   <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-500 mb-1">Daily Volume</p>
-                    <p className="text-2xl font-bold">$1,245.80</p>
+                    <p className="text-sm text-ink-soft mb-1">Daily Volume</p>
+                    <p className="text-xl font-bold tracking-tight text-ink sm:text-2xl">$1,245.80</p>
                     <div className="flex items-center mt-1 text-xs text-green-600">
                       <ArrowUp className="mr-1 h-3 w-3" />
                       <span>8.3% from yesterday</span>
                     </div>
                   </div>
                   <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-500 mb-1">Revenue (30d)</p>
-                    <p className="text-2xl font-bold">$32,456.10</p>
+                    <p className="text-sm text-ink-soft mb-1">Revenue (30d)</p>
+                    <p className="text-xl font-bold tracking-tight text-ink sm:text-2xl">$32,456.10</p>
                     <div className="flex items-center mt-1 text-xs text-green-600">
                       <ArrowUp className="mr-1 h-3 w-3" />
                       <span>12.7% from last month</span>
@@ -123,7 +124,7 @@ const DashboardWallet: React.FC = () => {
               <div className="overflow-hidden rounded-lg border">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-gray-50 text-gray-500">
+                    <tr className="bg-gray-50 text-ink-soft">
                       <th className="px-4 py-3 text-left font-medium">Asset</th>
                       <th className="px-4 py-3 text-right font-medium">Balance</th>
                       <th className="px-4 py-3 text-right font-medium">Value (USD)</th>
@@ -141,7 +142,7 @@ const DashboardWallet: React.FC = () => {
                             </div>
                             <div>
                               <div className="font-medium">{asset.name}</div>
-                              <div className="text-gray-500">{asset.symbol}</div>
+                              <div className="text-ink-soft">{asset.symbol}</div>
                             </div>
                           </div>
                         </td>
@@ -150,7 +151,7 @@ const DashboardWallet: React.FC = () => {
                         <td className="px-4 py-3 text-right">
                           <span className={`inline-flex items-center ${
                             asset.change > 0 ? 'text-green-600' : 
-                            asset.change < 0 ? 'text-red-600' : 'text-gray-500'
+                            asset.change < 0 ? 'text-red-600' : 'text-ink-soft'
                           }`}>
                             {asset.change > 0 ? <ArrowUp className="mr-1 h-3 w-3" /> : 
                              asset.change < 0 ? <ArrowDown className="mr-1 h-3 w-3" /> : null}
@@ -222,12 +223,12 @@ const DashboardWallet: React.FC = () => {
                         </div>
                         <div>
                           <div className="font-medium">{i % 2 === 0 ? 'Received ETH' : 'Sent USDC'}</div>
-                          <div className="text-xs text-gray-500">Today, 2:45 PM</div>
+                          <div className="text-xs text-ink-soft">Today, 2:45 PM</div>
                         </div>
                       </div>
                       <div className="text-right">
                         <div className="font-medium">{i % 2 === 0 ? '+0.25 ETH' : '-120 USDC'}</div>
-                        <div className="text-xs text-gray-500">{i % 2 === 0 ? '≈ $750' : '≈ $120'}</div>
+                        <div className="text-xs text-ink-soft">{i % 2 === 0 ? '≈ $750' : '≈ $120'}</div>
                       </div>
                     </div>
                   ))}
@@ -242,12 +243,12 @@ const DashboardWallet: React.FC = () => {
                       </div>
                       <div>
                         <div className="font-medium">Received ETH</div>
-                        <div className="text-xs text-gray-500">Today, 2:45 PM</div>
+                        <div className="text-xs text-ink-soft">Today, 2:45 PM</div>
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="font-medium">+0.25 ETH</div>
-                      <div className="text-xs text-gray-500">≈ $750</div>
+                      <div className="text-xs text-ink-soft">≈ $750</div>
                     </div>
                   </div>
                   <Button variant="link" className="w-full mt-2">View all deposits</Button>
@@ -261,12 +262,12 @@ const DashboardWallet: React.FC = () => {
                       </div>
                       <div>
                         <div className="font-medium">Sent USDC</div>
-                        <div className="text-xs text-gray-500">Today, 2:45 PM</div>
+                        <div className="text-xs text-ink-soft">Today, 2:45 PM</div>
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="font-medium">-120 USDC</div>
-                      <div className="text-xs text-gray-500">≈ $120</div>
+                      <div className="text-xs text-ink-soft">≈ $120</div>
                     </div>
                   </div>
                   <Button variant="link" className="w-full mt-2">View all withdrawals</Button>

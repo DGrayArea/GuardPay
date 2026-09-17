@@ -1,0 +1,200 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ---- GuardPay brand -------------------------------------------------
+       Ink navy carries structure and text; teal is the brand and every
+       primary action; violet is reserved exclusively for escrow surfaces so
+       "held funds" is visually distinct from "paid". Amber flags a payment
+       that needs attention (underpaid/expiring). */
+    --gp-ink: 222 47% 9%;
+    --gp-ink-soft: 220 22% 34%;
+    --gp-brand: 176 82% 32%;
+    --gp-brand-strong: 177 84% 24%;
+    --gp-brand-soft: 172 60% 95%;
+    --gp-escrow: 250 84% 64%;
+    --gp-escrow-soft: 250 100% 97%;
+    --gp-warn: 32 92% 46%;
+    --gp-warn-soft: 40 96% 95%;
+    --gp-ok: 160 84% 32%;
+    --gp-ok-soft: 158 72% 95%;
+
+    /* The slot cut through the logo mark; flips on dark surfaces. */
+    --gp-mark-slot: #fff;
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: var(--gp-brand);
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: var(--gp-brand);
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --gp-ink: 210 40% 98%;
+    --gp-ink-soft: 215 20% 65%;
+    --gp-brand: 172 76% 45%;
+    --gp-brand-strong: 172 80% 38%;
+    --gp-brand-soft: 180 40% 14%;
+    --gp-escrow: 250 90% 72%;
+    --gp-escrow-soft: 250 40% 18%;
+    --gp-warn-soft: 32 40% 16%;
+    --gp-ok-soft: 160 40% 14%;
+    --gp-mark-slot: #0b1020;
+
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: var(--gp-brand);
+    --primary-foreground: 222 47% 9%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .glass-panel {
+    @apply backdrop-blur-sm bg-white/80 dark:bg-black/30 border border-white/20 dark:border-white/10;
+  }
+
+  .glass-card {
+    @apply backdrop-blur-sm bg-white/90 dark:bg-black/40 border border-gray-200/70 dark:border-gray-800/50 shadow-elevation-1;
+  }
+
+  .glass-button {
+    @apply backdrop-blur-sm bg-white/80 dark:bg-white/10 border border-gray-200/70 dark:border-gray-800/50 transition-all;
+  }
+  
+  .glass-button:hover {
+    @apply backdrop-blur-md bg-white/90 dark:bg-white/20 border-gray-200/90 dark:border-gray-700/70;
+  }
+
+  .glass-input {
+    @apply backdrop-blur-sm bg-white/70 dark:bg-black/20 border border-gray-200/80 dark:border-gray-800/40 focus:border-blue-300 dark:focus:border-blue-500 transition-all;
+  }
+
+  .section-transition {
+    @apply transition-all duration-500 ease-in-out;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 dark:bg-gray-700 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400 dark:bg-gray-600;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Solana wallet-adapter ships its own purple button. Re-skin it to the brand so
+   the EVM and Solana paths don't look like two different products.
+   --------------------------------------------------------------------------- */
+@layer components {
+  .wallet-adapter-button-trigger {
+    background-color: hsl(var(--gp-brand)) !important;
+    border-radius: 0.75rem !important;
+    height: 2.75rem !important;
+    font-family: var(--font-sans), Inter, system-ui, sans-serif !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    line-height: 1 !important;
+    padding: 0 1.25rem !important;
+  }
+
+  .wallet-adapter-button-trigger:not([disabled]):hover {
+    background-color: hsl(var(--gp-brand-strong)) !important;
+  }
+
+  .wallet-adapter-button-trigger:focus-visible {
+    outline: 2px solid hsl(var(--gp-brand));
+    outline-offset: 2px;
+  }
+
+  .wallet-adapter-modal-wrapper {
+    border-radius: 1rem;
+    font-family: var(--font-sans), Inter, system-ui, sans-serif;
+  }
+}

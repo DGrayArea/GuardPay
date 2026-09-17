@@ -1,3 +1,4 @@
+'use client';
 
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -43,9 +44,9 @@ const DashboardPayments: React.FC = () => {
       : transactions.filter(p => p.type === 'direct');
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Payments</h1>
+    <div className="space-y-6 p-4 sm:p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">Payments</h1>
         <div className="flex items-center space-x-4">
           <Button variant="outline" size="sm">
             <Download size={16} className="mr-2" />
@@ -65,7 +66,7 @@ const DashboardPayments: React.FC = () => {
         <CardContent>
           <div className="flex justify-between mb-6">
             <div className="flex items-center space-x-2 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-ink-soft h-4 w-4" />
               <input 
                 type="text" 
                 placeholder="Search transactions..." 
@@ -89,6 +90,7 @@ const DashboardPayments: React.FC = () => {
           </div>
 
           <div className="overflow-hidden rounded-lg border">
+            <div className="-mx-4 overflow-x-auto sm:mx-0">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -106,12 +108,12 @@ const DashboardPayments: React.FC = () => {
                 {loading ? (
                     <TableRow>
                         <TableCell colSpan={8} className="text-center py-8">
-                            <Loader2 className="mx-auto h-6 w-6 animate-spin text-gray-400" />
+                            <Loader2 className="mx-auto h-6 w-6 animate-spin text-ink-soft" />
                         </TableCell>
                     </TableRow>
                 ) : filteredPayments.length === 0 ? (
                     <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={8} className="text-center py-8 text-ink-soft">
                             No transactions found.
                         </TableCell>
                     </TableRow>
@@ -119,11 +121,11 @@ const DashboardPayments: React.FC = () => {
                     filteredPayments.map((payment) => (
                     <TableRow key={payment.id}>
                         <TableCell className="font-mono text-xs">{payment.id}</TableCell>
-                        <TableCell className="text-xs text-gray-500">
+                        <TableCell className="text-xs text-ink-soft">
                             {new Date(payment.timestamp).toLocaleDateString()}
                         </TableCell>
                         <TableCell className="text-sm">{payment.linkTitle || 'N/A'}</TableCell>
-                        <TableCell className="font-mono text-xs text-gray-500">
+                        <TableCell className="font-mono text-xs text-ink-soft">
                             {payment.customer ? `${payment.customer.slice(0,6)}...` : 'Unknown'}
                         </TableCell>
                         <TableCell>
@@ -154,6 +156,7 @@ const DashboardPayments: React.FC = () => {
                 )}
               </TableBody>
             </Table>
+          </div>
           </div>
         </CardContent>
       </Card>

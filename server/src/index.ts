@@ -8,6 +8,7 @@ import { initializeDatabase } from './config/database';
 import { blockchainService } from './services/blockchain.service';
 import { webhookService } from './services/webhook.service';
 import { sweepService } from './services/sweep.service';
+import { walletService } from './services/wallet.service';
 import { FEE_SCHEDULES } from './services/fee.service';
 
 // Routes
@@ -100,6 +101,9 @@ async function startServer() {
     // Initialize database
     console.log('🔧 Initializing database...');
     initializeDatabase();
+
+    // Upgrade any key material written before encryption-at-rest existed.
+    walletService.migrateStoredSecrets();
 
     // Start background workers
     console.log('🔍 Starting blockchain monitoring...');

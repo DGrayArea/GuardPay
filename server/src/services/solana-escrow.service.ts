@@ -128,6 +128,11 @@ class SolanaEscrowService {
     const destOwner = new PublicKey(destination);
     const destAta = getAssociatedTokenAddressSync(mint, destOwner, true);
 
+    // The vault holds only USDC, so top it up before it has to pay rent and
+    // fees. Without this a funded escrow can be released in the UI but the
+    // payout transaction fails, leaving the money stuck in the vault.
+    await this.ensureVaultFunded(vault.publicKey, destAta, feeDestination);
+
     const tx = new Transaction();
 
     // The recipient may never have held this token; create their account first.
@@ -165,6 +170,59 @@ class SolanaEscrowService {
     }
 
     return sendAndConfirmTransaction(connection, tx, [vault], { commitment: 'confirmed' });
+  }
+
+  /**
+   * Make sure an escrow vault can pay for its own payout.
+   *
+   * A release may have to open up to two token accounts (seller and treasury),
+   * each of which costs rent. Funded from the deterministic Solana operator so
+   * the top-up is recoverable from MASTER_SEED.
+   */
+  private async ensureVaultFunded(
+    vault: PublicKey,
+    destAta: PublicKey,
+    feeDestination?: string
+  ): Promise<void> {
+    const connection = this.conn();
+    const mint = new PublicKey(this.token.mint);
+
+    let accountsToOpen = (await connection.getAccountInfo(destAta)) === null ? 1 : 0;
+    if (feeDestination) {
+      const feeAta = getAssociatedTokenAddressSync(mint, new PublicKey(feeDestination), true);
+      if ((await connection.getAccountInfo(feeAta)) === null) accountsToOpen++;
+    }
+
+    const rent = accountsToOpen
+      ? accountsToOpen * (await connection.getMinimumBalanceForRentExemption(165))
+      : 0;
+    const needed = rent + 10_000;
+
+    const held = await connection.getBalance(vault);
+    if (held >= needed) return;
+
+    const funder = walletService.getSolanaOperator();
+    if (!funder) {
+      throw new Error(
+        'No Solana operator configured — cannot fund this escrow payout. ' +
+          'Set SOLANA_OPERATOR_SECRET (or MASTER_SEED) and fund that address.'
+      );
+    }
+
+    const topUp = needed - held;
+    const funderBalance = await connection.getBalance(funder.publicKey);
+    if (funderBalance < topUp) {
+      throw new Error(
+        `Solana operator ${funder.publicKey.toBase58()} holds ${funderBalance / LAMPORTS_PER_SOL} SOL, ` +
+          `needs ${topUp / LAMPORTS_PER_SOL} to release this escrow`
+      );
+    }
+
+    const tx = new Transaction().add(
+      SystemProgram.transfer({ fromPubkey: funder.publicKey, toPubkey: vault, lamports: topUp })
+    );
+    await sendAndConfirmTransaction(connection, tx, [funder], { commitment: 'confirmed' });
+    console.log(`⛽ Funded escrow vault ${vault.toBase58()} with ${topUp / LAMPORTS_PER_SOL} SOL`);
   }
 
   private async accountExists(address: PublicKey): Promise<boolean> {

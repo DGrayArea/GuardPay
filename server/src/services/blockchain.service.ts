@@ -62,10 +62,41 @@ class BlockchainService {
     this.initializeProviders();
   }
 
+  /**
+   * Build a provider that survives one endpoint going down.
+   *
+   * Public testnet RPCs rate-limit and fail often; a single flaky endpoint
+   * would otherwise stall payment detection entirely. FallbackProvider races
+   * the configured endpoints and only reports failure if all of them fail.
+   */
+  private buildProvider(chain: string, primary: string): ethers.AbstractProvider {
+    const extra = (process.env[`${chain}_RPC_FALLBACKS`] || '')
+      .split(',')
+      .map((u) => u.trim())
+      .filter(Boolean);
+
+    const urls = [primary, ...extra];
+    if (urls.length === 1) return new ethers.JsonRpcProvider(primary);
+
+    return new ethers.FallbackProvider(
+      urls.map((url, i) => ({
+        provider: new ethers.JsonRpcProvider(url, undefined, { staticNetwork: true }),
+        // Earlier entries are preferred; all count equally toward quorum.
+        priority: i + 1,
+        stallTimeout: 2000,
+        weight: 1,
+      })),
+      undefined,
+      // One healthy endpoint is enough — requiring agreement would reintroduce
+      // the single-point-of-failure this is meant to remove.
+      { quorum: 1 }
+    );
+  }
+
   private initializeProviders() {
     for (const [chain, config] of Object.entries(CHAINS)) {
       if (config.rpcUrl) {
-        this.evmProviders.set(chain, new ethers.JsonRpcProvider(config.rpcUrl));
+        this.evmProviders.set(chain, this.buildProvider(chain, config.rpcUrl) as ethers.JsonRpcProvider);
       } else {
         console.warn(`⚠️  No RPC URL for ${chain} — payments on this chain will not be detected`);
       }

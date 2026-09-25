@@ -67,6 +67,28 @@ const bad = (s: string) => `\x1b[31m✗\x1b[0m ${s}`;
     console.log(bad('could not read operator balance: ' + e.message));
   }
 
+  // --- Solana relayer ------------------------------------------------------
+  try {
+    const { walletService } = await import('../src/services/wallet.service');
+    const funder = walletService.getSolanaOperator();
+    if (!funder) {
+      console.log(warn('no Solana operator — SPL sweeps and escrow payouts cannot pay rent'));
+    } else {
+      const conn = new Connection(process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com', 'confirmed');
+      const lamports = await conn.getBalance(funder.publicKey);
+      const sol = lamports / LAMPORTS_PER_SOL;
+      if (sol === 0) {
+        console.log(bad(`Solana operator ${funder.publicKey.toBase58()} has 0 SOL`));
+        console.log('    blocks: USDC-on-Solana sweeps, Solana escrow release');
+        blockers.push(`Fund ${funder.publicKey.toBase58()} with devnet SOL`);
+      } else {
+        console.log(ok(`Solana operator funded (${sol} SOL)`));
+      }
+    }
+  } catch (e: any) {
+    console.log(warn('could not check the Solana operator: ' + e.message));
+  }
+
   // --- fee collection ------------------------------------------------------
   const feeEvm = process.env.PLATFORM_FEE_ADDRESS;
   const feeSol = process.env.PLATFORM_FEE_SOLANA_ADDRESS;

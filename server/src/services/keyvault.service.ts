@@ -22,44 +22,61 @@ const ALGO = 'aes-256-gcm';
 const IV_BYTES = 12; // GCM standard nonce length
 const KEY_BYTES = 32;
 
-let cachedKey: Buffer | null = null;
+let cachedKeys: Buffer[] | null = null;
+
+/** Turn a passphrase or 32-byte hex string into a key. */
+function toKey(material: string, info: string): Buffer {
+  if (/^[0-9a-fA-F]{64}$/.test(material)) return Buffer.from(material, 'hex');
+  return Buffer.from(
+    crypto.hkdfSync('sha256', Buffer.from(material), Buffer.alloc(0), info, KEY_BYTES)
+  );
+}
 
 /**
- * Derive the data-encryption key.
+ * Every key this deployment might have encrypted with, newest first.
  *
- * Prefers an explicit KEY_ENCRYPTION_KEY so the encryption key can live in a
- * KMS and be rotated independently of the wallet seed. Falls back to deriving
- * from MASTER_SEED, which keeps local development working — but note that the
- * fallback means one secret protects both, so production should set the
- * explicit key.
+ * Decryption tries them in order; encryption always uses the first. This is
+ * what makes introducing or rotating KEY_ENCRYPTION_KEY safe: without it,
+ * adding a key silently orphans everything encrypted under the previous one,
+ * and the loss only surfaces later when someone tries to move funds.
+ *
+ * Rotate with `pnpm rewrap`, which re-encrypts everything under the current
+ * primary so the old key can then be retired.
  */
-function getKey(): Buffer {
-  if (cachedKey) return cachedKey;
+function getKeys(): Buffer[] {
+  if (cachedKeys) return cachedKeys;
 
+  const keys: Buffer[] = [];
   const explicit = process.env.KEY_ENCRYPTION_KEY;
-  if (explicit) {
-    // Accept either 32 raw bytes as hex/base64, or any passphrase.
-    const asHex = /^[0-9a-fA-F]{64}$/.test(explicit) ? Buffer.from(explicit, 'hex') : null;
-    cachedKey =
-      asHex ??
-      crypto.hkdfSync('sha256', Buffer.from(explicit), Buffer.alloc(0), 'guardpay:keyvault', KEY_BYTES) as unknown as Buffer;
-    cachedKey = Buffer.from(cachedKey);
-    return cachedKey;
+  const previous = process.env.KEY_ENCRYPTION_KEY_PREVIOUS;
+  const seed = process.env.MASTER_SEED;
+
+  if (explicit) keys.push(toKey(explicit, 'guardpay:keyvault'));
+  if (previous) keys.push(toKey(previous, 'guardpay:keyvault'));
+
+  // The seed-derived key is always a decryption candidate, because it is what
+  // earlier deployments used before KEY_ENCRYPTION_KEY existed.
+  if (seed) {
+    keys.push(
+      Buffer.from(
+        crypto.hkdfSync('sha256', Buffer.from(seed), Buffer.alloc(0), 'guardpay:keyvault:v1', KEY_BYTES)
+      )
+    );
   }
 
-  const seed = process.env.MASTER_SEED;
-  if (!seed) {
+  if (keys.length === 0) {
     throw new Error(
       'Cannot encrypt key material: set KEY_ENCRYPTION_KEY (preferred) or MASTER_SEED'
     );
   }
 
-  // A distinct info string, so this key is unrelated to anything else derived
-  // from the same seed.
-  cachedKey = Buffer.from(
-    crypto.hkdfSync('sha256', Buffer.from(seed), Buffer.alloc(0), 'guardpay:keyvault:v1', KEY_BYTES)
-  );
-  return cachedKey;
+  cachedKeys = keys;
+  return keys;
+}
+
+/** The key new secrets are sealed with. */
+function primaryKey(): Buffer {
+  return getKeys()[0];
 }
 
 /** True when a stored value is already in the encrypted envelope format. */
@@ -69,7 +86,7 @@ export function isEncrypted(value: string | null | undefined): boolean {
 
 export function encryptSecret(plaintext: string): string {
   const iv = crypto.randomBytes(IV_BYTES);
-  const cipher = crypto.createCipheriv(ALGO, getKey(), iv);
+  const cipher = crypto.createCipheriv(ALGO, primaryKey(), iv);
   const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
   const tag = cipher.getAuthTag();
 
@@ -92,16 +109,45 @@ export function decryptSecret(stored: string): string {
     throw new Error('Malformed encrypted secret');
   }
 
-  const decipher = crypto.createDecipheriv(ALGO, getKey(), Buffer.from(ivB64, 'base64'));
-  decipher.setAuthTag(Buffer.from(tagB64, 'base64'));
+  // GCM authentication tells us definitively whether a key is the right one,
+  // so trying each candidate is safe — a wrong key throws rather than
+  // returning plausible garbage.
+  let lastError: Error | null = null;
+  for (const key of getKeys()) {
+    try {
+      const decipher = crypto.createDecipheriv(ALGO, key, Buffer.from(ivB64, 'base64'));
+      decipher.setAuthTag(Buffer.from(tagB64, 'base64'));
+      return Buffer.concat([
+        decipher.update(Buffer.from(dataB64, 'base64')),
+        decipher.final(),
+      ]).toString('utf8');
+    } catch (error: any) {
+      lastError = error;
+    }
+  }
 
-  return Buffer.concat([
-    decipher.update(Buffer.from(dataB64, 'base64')),
-    decipher.final(),
-  ]).toString('utf8');
+  throw new Error(
+    'Could not decrypt stored key material with any configured key. ' +
+      'If KEY_ENCRYPTION_KEY was changed, set KEY_ENCRYPTION_KEY_PREVIOUS to the old value ' +
+      `and run \`pnpm rewrap\`. (${lastError?.message ?? 'unknown'})`
+  );
 }
 
-/** Only for tests — forces the key to be re-derived. */
+/** True when the value decrypts under the CURRENT primary key. */
+export function isUnderPrimaryKey(stored: string): boolean {
+  if (!isEncrypted(stored)) return false;
+  const [, ivB64, tagB64, dataB64] = stored.split('.');
+  try {
+    const decipher = crypto.createDecipheriv(ALGO, primaryKey(), Buffer.from(ivB64, 'base64'));
+    decipher.setAuthTag(Buffer.from(tagB64, 'base64'));
+    Buffer.concat([decipher.update(Buffer.from(dataB64, 'base64')), decipher.final()]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Only for tests — forces keys to be re-derived. */
 export function resetKeyCache() {
-  cachedKey = null;
+  cachedKeys = null;
 }

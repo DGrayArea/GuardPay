@@ -19,6 +19,7 @@ import invoiceRoutes from './routes/invoice.routes';
 import webhookRoutes from './routes/webhook.routes';
 import escrowRoutes from './routes/escrow.routes';
 import accountRoutes from './routes/account.routes';
+import x402Routes from './routes/x402.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -80,6 +81,7 @@ app.use('/api/invoices', invoiceRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/escrows', escrowRoutes);
 app.use('/api/account', accountRoutes);
+app.use('/api/x402', x402Routes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
@@ -133,6 +135,9 @@ async function startServer() {
       console.log('  GET    /api/webhooks');
       console.log('  GET    /api/escrows');
       console.log('  POST   /api/escrows');
+      console.log('  GET    /api/x402/supported');
+      console.log('  POST   /api/x402/verify');
+      console.log('  POST   /api/x402/settle');
       console.log('');
     });
 

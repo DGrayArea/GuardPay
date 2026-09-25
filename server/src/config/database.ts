@@ -224,6 +224,34 @@ export function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_deliveries_webhook ON webhook_deliveries(webhook_id);
   `);
 
+  // --- x402: per-request API payments ---------------------------------------
+  // A ledger of authorizations this facilitator has verified or settled. The
+  // `payment_id` unique index is the replay guard: the token contract would
+  // also reject a reused EIP-3009 nonce, but only after a broadcast has cost
+  // gas, so duplicates are refused here before submission.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS x402_payments (
+      id TEXT PRIMARY KEY,
+      merchant_id TEXT,
+      payment_id TEXT UNIQUE,
+      scheme TEXT NOT NULL,
+      network TEXT NOT NULL,
+      payer TEXT,
+      pay_to TEXT,
+      asset TEXT,
+      amount TEXT,
+      resource TEXT,
+      status TEXT NOT NULL DEFAULT 'verified',
+      tx_hash TEXT,
+      error TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      settled_at DATETIME
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_x402_merchant ON x402_payments(merchant_id);
+    CREATE INDEX IF NOT EXISTS idx_x402_status ON x402_payments(status);
+  `);
+
   // --- Two-sided marketplace: buyer/seller identities ------------------------
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
@@ -400,6 +428,26 @@ export const queries = {
   ),
   updateSweep: stmt(
     'UPDATE sweeps SET status = ?, tx_hash = ?, error = ?, attempts = ?, completed_at = ? WHERE id = ?'
+  ),
+
+  // x402
+  recordX402: stmt(
+    `INSERT OR IGNORE INTO x402_payments
+       (id, merchant_id, payment_id, scheme, network, payer, pay_to, asset, amount, resource, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ),
+  getX402ByPaymentId: stmt('SELECT * FROM x402_payments WHERE payment_id = ?'),
+  settleX402: stmt(
+    "UPDATE x402_payments SET status = ?, tx_hash = ?, error = ?, settled_at = datetime('now') WHERE id = ?"
+  ),
+  getX402ByMerchant: stmt(
+    'SELECT * FROM x402_payments WHERE merchant_id = ? ORDER BY created_at DESC LIMIT 200'
+  ),
+  getX402Stats: stmt(
+    `SELECT COUNT(*) AS total,
+            SUM(CASE WHEN status = 'settled' THEN 1 ELSE 0 END) AS settled,
+            COALESCE(SUM(CASE WHEN status = 'settled' THEN CAST(amount AS REAL) ELSE 0 END), 0) AS volume
+       FROM x402_payments WHERE merchant_id = ?`
   ),
 
   // Users (marketplace side)

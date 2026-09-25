@@ -1,6 +1,7 @@
 import { ethers } from 'ethers';
 import { Keypair } from '@solana/web3.js';
 import * as bip39 from 'bip39';
+import crypto from 'crypto';
 import { queries, db } from '../config/database';
 import { decryptSecret, encryptSecret, isEncrypted, isUnderPrimaryKey } from './keyvault.service';
 
@@ -258,6 +259,31 @@ class WalletService {
   getWalletByIndex(index: number): ethers.HDNodeWallet {
     if (!this.root) throw new Error('No seed in this process');
     return this.root.derivePath(`${ACCOUNT_PATH}/0/${index}`);
+  }
+
+  /**
+   * The Solana relayer that funds rent and fees.
+   *
+   * Derived deterministically from MASTER_SEED so it survives a restart and can
+   * be recovered from the seed alone — a randomly generated funder would strand
+   * whatever SOL had been sent to it. ed25519 has no BIP32 derivation, so the
+   * seed is hashed with a distinct label instead.
+   */
+  getSolanaOperator(): Keypair | null {
+    const explicit = process.env.SOLANA_OPERATOR_SECRET;
+    if (explicit) {
+      return Keypair.fromSecretKey(Buffer.from(explicit, 'base64'));
+    }
+
+    const seed = process.env.MASTER_SEED;
+    if (!seed || !this.canSign) return null;
+
+    const material = crypto
+      .createHash('sha256')
+      .update(`guardpay:solana-operator:v1:${seed}`)
+      .digest();
+
+    return Keypair.fromSeed(Uint8Array.from(material));
   }
 
   getCurrentIndex(): number {

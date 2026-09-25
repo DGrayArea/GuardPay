@@ -2,7 +2,7 @@ import { ethers } from 'ethers';
 import { Keypair } from '@solana/web3.js';
 import * as bip39 from 'bip39';
 import { queries, db } from '../config/database';
-import { decryptSecret, encryptSecret, isEncrypted } from './keyvault.service';
+import { decryptSecret, encryptSecret, isEncrypted, isUnderPrimaryKey } from './keyvault.service';
 
 const EVM_INDEX_COUNTER = 'evm_address_index';
 
@@ -167,6 +167,59 @@ class WalletService {
    * Idempotent, and runs inside a transaction so a crash mid-way cannot leave
    * the table half-converted.
    */
+  /**
+   * Re-encrypt every stored secret under the CURRENT primary key, so a
+   * superseded KEY_ENCRYPTION_KEY can be retired. Requires the old key to
+   * still be reachable (KEY_ENCRYPTION_KEY_PREVIOUS, or MASTER_SEED for
+   * pre-encryption rows).
+   */
+  rewrapStoredSecrets(): { rewrapped: number; alreadyCurrent: number; failed: string[] } {
+    const rows = db
+      .prepare('SELECT address, secret_key FROM wallet_keys WHERE secret_key IS NOT NULL')
+      .all() as { address: string; secret_key: string }[];
+
+    const update = db.prepare('UPDATE wallet_keys SET secret_key = ? WHERE address = ?');
+    const failed: string[] = [];
+    let rewrapped = 0;
+    let alreadyCurrent = 0;
+
+    for (const row of rows) {
+      if (isUnderPrimaryKey(row.secret_key)) {
+        alreadyCurrent++;
+        continue;
+      }
+      try {
+        // Decrypt with whichever key still works, re-seal under the primary.
+        update.run(encryptSecret(decryptSecret(row.secret_key)), row.address);
+        rewrapped++;
+      } catch {
+        failed.push(row.address);
+      }
+    }
+
+    return { rewrapped, alreadyCurrent, failed };
+  }
+
+  /** Report any stored secret that no configured key can open. */
+  auditStoredSecrets(): { total: number; unreadable: string[] } {
+    const rows = db
+      .prepare('SELECT address, secret_key FROM wallet_keys WHERE secret_key IS NOT NULL')
+      .all() as { address: string; secret_key: string }[];
+
+    const unreadable = rows
+      .filter((r) => {
+        try {
+          decryptSecret(r.secret_key);
+          return false;
+        } catch {
+          return true;
+        }
+      })
+      .map((r) => r.address);
+
+    return { total: rows.length, unreadable };
+  }
+
   migrateStoredSecrets(): { converted: number; alreadyEncrypted: number } {
     const rows = db
       .prepare('SELECT address, secret_key FROM wallet_keys WHERE secret_key IS NOT NULL')

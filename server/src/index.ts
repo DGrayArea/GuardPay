@@ -107,6 +107,20 @@ async function startServer() {
     // Upgrade any key material written before encryption-at-rest existed.
     walletService.migrateStoredSecrets();
 
+    // Surface unreadable key material at boot. Discovering it later, when
+    // someone tries to release an escrow, is far too late.
+    const audit = walletService.auditStoredSecrets();
+    if (audit.unreadable.length > 0) {
+      console.error(
+        `\n🔴 ${audit.unreadable.length} of ${audit.total} stored key(s) cannot be decrypted.\n` +
+          '   Funds at those addresses are unspendable by this process.\n' +
+          '   If KEY_ENCRYPTION_KEY changed, set KEY_ENCRYPTION_KEY_PREVIOUS to the old\n' +
+          '   value and run `pnpm rewrap`.\n' +
+          audit.unreadable.map((a) => `     ${a}`).join('\n') +
+          '\n'
+      );
+    }
+
     // Start background workers
     console.log('🔍 Starting blockchain monitoring...');
     blockchainService.startMonitoring();

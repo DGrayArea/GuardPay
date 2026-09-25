@@ -8,7 +8,9 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "db:migrate": "node dist/config/migrate.js",
-    "xpub": "pnpm exec tsx scripts/export-xpub.ts"
+    "xpub": "pnpm exec tsx scripts/export-xpub.ts",
+    "doctor": "pnpm exec tsx scripts/doctor.ts",
+    "rewrap": "pnpm exec tsx scripts/rewrap.ts"
   },
   "keywords": [
     "crypto",

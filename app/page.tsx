@@ -6,12 +6,11 @@ import Features from '@/components/home/Features';
 import PaymentDemo from '@/components/home/PaymentDemo';
 import EscrowExplainer from '@/components/home/EscrowExplainer';
 import MerchantPreview from '@/components/home/MerchantPreview';
+import { siteUrl } from '@/lib/site';
 
 export const metadata: Metadata = {
   alternates: { canonical: '/' },
 };
-
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
 /** Structured data so search results can show the product, not just a link. */
 const jsonLd = {
@@ -22,7 +21,7 @@ const jsonLd = {
       '@id': `${siteUrl}/#organization`,
       name: 'GuardPay',
       url: siteUrl,
-      logo: `${siteUrl}/icon.svg`,
+      logo: `${siteUrl}/icon-512.png`,
     },
     {
       '@type': 'WebSite',

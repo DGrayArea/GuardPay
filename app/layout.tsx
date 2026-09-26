@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import { Providers } from './providers';
 import './globals.css';
+import { siteUrl, indexable } from '@/lib/site';
 
 const sans = Inter({
   subsets: ['latin'],
@@ -16,8 +17,6 @@ const mono = JetBrains_Mono({
   variable: '--font-mono',
   display: 'swap',
 });
-
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -55,10 +54,11 @@ export const metadata: Metadata = {
     description:
       'Shareable payment links, automatic on-chain confirmation, and smart-contract escrow that protects both sides.',
   },
+  manifest: '/manifest.webmanifest',
   robots: {
-    index: true,
-    follow: true,
-    googleBot: { index: true, follow: true, 'max-image-preview': 'large' },
+    index: indexable,
+    follow: indexable,
+    googleBot: { index: indexable, follow: indexable, 'max-image-preview': 'large' },
   },
 };
 

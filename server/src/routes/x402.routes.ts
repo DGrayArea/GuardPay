@@ -4,6 +4,7 @@ import { queries } from '../config/database';
 import { x402Service } from '../services/x402.service';
 import { webhookService } from '../services/webhook.service';
 import { authenticateJWT, AuthRequest } from '../middleware/auth.middleware';
+import { computeX402Fee, X402_FEE } from '../services/fee.service';
 
 const router: Router = Router();
 
@@ -66,6 +67,14 @@ function shapeError(payload: any, requirements: any): string | null {
   return null;
 }
 
+/**
+ * Who the facilitator will pay gas for. `any` settles for every payee, which
+ * is the open-infrastructure default. `merchants` settles only for payees
+ * registered here, since a fee can only be accrued against an account that
+ * exists — otherwise every stranger's settlement is gas GuardPay never recoups.
+ */
+const PAYEE_POLICY = process.env.X402_PAYEES === 'merchants' ? 'merchants' : 'any';
+
 function unavailable(res: Response) {
   return res.status(503).json({
     error: 'x402 facilitator is not configured on this server',
@@ -77,6 +86,16 @@ function unavailable(res: Response) {
 router.get('/supported', (_req: Request, res: Response) => {
   if (!x402Service.isConfigured) return unavailable(res);
   res.json(x402Service.getSupported());
+});
+
+/** What this facilitator charges payees, so a resource server can see it before integrating. */
+router.get('/fees', (_req: Request, res: Response) => {
+  res.json({
+    bps: Number(X402_FEE.bps),
+    minAtomic: X402_FEE.min.toString(),
+    payees: PAYEE_POLICY,
+    collection: 'accrued per settlement against the payee merchant account',
+  });
 });
 
 /**
@@ -154,6 +173,14 @@ router.post('/settle', async (req: Request, res: Response) => {
     ? (queries.getMerchantByWallet.get(info.payTo) as any)
     : null;
 
+  if (PAYEE_POLICY === 'merchants' && !merchant) {
+    return res.status(403).json({
+      success: false,
+      errorReason: 'payee_not_registered',
+      detail: 'This facilitator only settles for payees with a GuardPay merchant account.',
+    });
+  }
+
   queries.recordX402.run(
     rowId,
     merchant?.id ?? null,
@@ -173,10 +200,15 @@ router.post('/settle', async (req: Request, res: Response) => {
     const success = (result as any)?.success !== false;
     const txHash = (result as any)?.transaction ?? null;
 
+    // Fixed at settlement so a later rate change never rewrites what was owed.
+    // Only a known payee can owe anything.
+    const fee = success && merchant?.id ? computeX402Fee(info.amount) : '0';
+
     queries.settleX402.run(
       success ? 'settled' : 'failed',
       txHash,
       success ? null : ((result as any)?.errorReason ?? 'settlement failed'),
+      fee,
       rowId
     );
 
@@ -189,13 +221,14 @@ router.post('/settle', async (req: Request, res: Response) => {
         network: info.network,
         resource: info.resource,
         tx_hash: txHash,
+        fee_amount: fee,
       });
     }
 
     res.json(result);
   } catch (error: any) {
     console.error('x402 settle error:', error);
-    queries.settleX402.run('failed', null, error?.message ?? 'settlement failed', rowId);
+    queries.settleX402.run('failed', null, error?.message ?? 'settlement failed', '0', rowId);
     res.status(502).json({
       success: false,
       errorReason: 'facilitator could not complete settlement',
@@ -218,6 +251,8 @@ router.get('/payments', (req: AuthRequest, res: Response) => {
         total: stats?.total ?? 0,
         settled: stats?.settled ?? 0,
         volume: stats?.volume ?? 0,
+        // Facilitator fees owed on settled payments, atomic units of the asset.
+        fees: stats?.fees ?? 0,
       },
       payments: rows.map((r) => ({
         id: r.id,
@@ -226,6 +261,7 @@ router.get('/payments', (req: AuthRequest, res: Response) => {
         network: r.network,
         payer: r.payer,
         amount: r.amount,
+        fee: r.fee_amount ?? '0',
         asset: r.asset,
         resource: r.resource,
         status: r.status,

@@ -1,95 +1,65 @@
-import React from 'react';
-import { Twitter, Github, Linkedin } from 'lucide-react';
+import Link from 'next/link';
 import { Logo } from '@/components/brand/Logo';
 
-const Footer: React.FC = () => {
-  return (
-    <footer className="border-t border-border bg-muted/40 py-14 sm:py-16">
-      <div className="container mx-auto px-5 sm:px-6">
-        <div className="grid grid-cols-2 gap-8 md:grid-cols-4 md:gap-10">
-          <div className="space-y-4">
-            <Logo wordClassName="text-xl" />
-            <p className="text-sm text-gray-500 pr-4">
-              A secure web3 payment gateway and escrow service for modern businesses and customers.
-            </p>
-            <div className="flex space-x-4 pt-2">
-              <a href="#" aria-label="GuardPay on X" className="text-gray-400 hover:text-gray-600 transition-colors">
-                <Twitter size={18} />
-              </a>
-              <a href="#" aria-label="GuardPay on GitHub" className="text-gray-400 hover:text-gray-600 transition-colors">
-                <Github size={18} />
-              </a>
-              <a href="#" aria-label="GuardPay on LinkedIn" className="text-gray-400 hover:text-gray-600 transition-colors">
-                <Linkedin size={18} />
-              </a>
-            </div>
-          </div>
-          
-          <div>
-            <h3 className="font-medium text-sm uppercase tracking-wider text-gray-400 mb-4">
-              Products
-            </h3>
-            <ul className="space-y-3">
-              {["Payments", "Escrow", "Merchant Tools", "SDK", "API"].map((item, index) => (
-                <li key={index}>
-                  <a href="#" className="text-sm text-gray-500 hover:text-gray-800 transition-colors">
-                    {item}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-          
-          <div>
-            <h3 className="font-medium text-sm uppercase tracking-wider text-gray-400 mb-4">
-              Resources
-            </h3>
-            <ul className="space-y-3">
-              {["Documentation", "Guides", "API Reference", "Examples", "Status"].map((item, index) => (
-                <li key={index}>
-                  <a href="#" className="text-sm text-gray-500 hover:text-gray-800 transition-colors">
-                    {item}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-          
-          <div>
-            <h3 className="font-medium text-sm uppercase tracking-wider text-gray-400 mb-4">
-              Company
-            </h3>
-            <ul className="space-y-3">
-              {["About", "Blog", "Careers", "Contact", "Privacy", "Terms"].map((item, index) => (
-                <li key={index}>
-                  <a href="#" className="text-sm text-gray-500 hover:text-gray-800 transition-colors">
-                    {item}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-        
-        <div className="border-t border-gray-200 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
-          <p className="text-sm text-gray-500">
-            © {new Date().getFullYear()} GuardPay. All rights reserved.
-          </p>
-          <div className="mt-4 md:mt-0 flex space-x-6">
-            <a href="#" className="text-sm text-gray-500 hover:text-gray-800 transition-colors">
-              Privacy Policy
-            </a>
-            <a href="#" className="text-sm text-gray-500 hover:text-gray-800 transition-colors">
-              Terms of Service
-            </a>
-            <a href="#" className="text-sm text-gray-500 hover:text-gray-800 transition-colors">
-              Security
-            </a>
-          </div>
-        </div>
+const columns = [
+  {
+    title: 'Product',
+    links: [
+      { label: 'Payment links', href: '/#products' },
+      { label: 'Escrow', href: '/escrow' },
+      { label: 'x402 facilitator', href: '/#x402' },
+      { label: 'Pricing', href: '/#pricing' },
+    ],
+  },
+  {
+    title: 'Account',
+    links: [
+      { label: 'Sign in', href: '/login' },
+      { label: 'Dashboard', href: '/dashboard' },
+      { label: 'My payments', href: '/account' },
+    ],
+  },
+  {
+    title: 'Developers',
+    links: [
+      { label: 'Webhooks', href: '/#developers' },
+      { label: 'x402 endpoints', href: '/#x402' },
+      { label: 'FAQ', href: '/#faq' },
+    ],
+  },
+];
+
+const Footer = () => (
+  <footer className="border-t border-white/10 bg-[#070B14]">
+    <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.4fr_repeat(3,1fr)]">
+      <div className="max-w-xs">
+        <Logo markClassName="text-[#34E5A1]" wordClassName="text-white [&>span]:text-[#34E5A1]" />
+        <p className="mt-4 text-sm leading-relaxed text-slate-400">
+          Crypto payments, on-chain escrow and x402 settlement. Funds go to your own wallet.
+        </p>
       </div>
-    </footer>
-  );
-};
+      {columns.map((col) => (
+        <div key={col.title}>
+          <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{col.title}</h3>
+          <ul className="mt-4 space-y-3">
+            {col.links.map((link) => (
+              <li key={link.label}>
+                <Link href={link.href} className="text-sm text-slate-400 transition-colors hover:text-white">
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+    <div className="border-t border-white/10">
+      <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-xs text-slate-500 sm:flex-row sm:justify-between sm:px-6">
+        <p>© {new Date().getFullYear()} GuardPay</p>
+        <p>Running on testnets: Sepolia, Base Sepolia, BSC Testnet, Solana Devnet.</p>
+      </div>
+    </div>
+  </footer>
+);
 
 export default Footer;

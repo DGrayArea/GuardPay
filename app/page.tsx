@@ -1,11 +1,17 @@
 import type { Metadata } from 'next';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
-import Hero from '@/components/home/Hero';
-import Features from '@/components/home/Features';
-import PaymentDemo from '@/components/home/PaymentDemo';
-import EscrowExplainer from '@/components/home/EscrowExplainer';
-import MerchantPreview from '@/components/home/MerchantPreview';
+import Hero from '@/components/landing/Hero';
+import {
+  Chains,
+  Developers,
+  Faq,
+  FinalCta,
+  HowItWorks,
+  Pricing,
+  Products,
+  faqs,
+} from '@/components/landing/Sections';
 import { siteUrl } from '@/lib/site';
 
 export const metadata: Metadata = {
@@ -36,15 +42,23 @@ const jsonLd = {
       applicationCategory: 'FinanceApplication',
       operatingSystem: 'Web',
       description:
-        'Crypto payment gateway with shareable payment links, automatic on-chain confirmation, signed webhooks and smart-contract escrow.',
+        'Crypto payment gateway with payment links, on-chain escrow, signed webhooks and an x402 facilitator for per-request API payments.',
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+    },
+    {
+      '@type': 'FAQPage',
+      mainEntity: faqs.map((f) => ({
+        '@type': 'Question',
+        name: f.q,
+        acceptedAnswer: { '@type': 'Answer', text: f.a },
+      })),
     },
   ],
 };
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen overflow-x-hidden bg-background">
+    <div className="min-h-screen overflow-x-hidden bg-[#070B14]">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -52,10 +66,13 @@ export default function HomePage() {
       <Navbar />
       <main>
         <Hero />
-        <Features />
-        <PaymentDemo />
-        <EscrowExplainer />
-        <MerchantPreview />
+        <Chains />
+        <Products />
+        <HowItWorks />
+        <Pricing />
+        <Developers />
+        <Faq />
+        <FinalCta />
       </main>
       <Footer />
     </div>

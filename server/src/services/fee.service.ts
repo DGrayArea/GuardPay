@@ -138,6 +138,11 @@ export const X402_FEE = {
   bps: BigInt(Math.max(0, Math.trunc(num('X402_FEE_BPS', 100)))), // 1.00%
   /** Floor per settlement, atomic units — covers the gas GuardPay pays. */
   min: BigInt(Math.max(0, Math.trunc(num('X402_FEE_MIN', 0)))),
+  /**
+   * Unpaid fees, atomic units, above which settlement stops for that payee
+   * until they pay. 0 means no limit.
+   */
+  creditLimit: BigInt(Math.max(0, Math.trunc(num('X402_FEE_CREDIT_LIMIT', 0)))),
 };
 
 /** Fee owed for one settled x402 payment, in atomic units. Never exceeds the amount. */

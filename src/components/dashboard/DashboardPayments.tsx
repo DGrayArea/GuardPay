@@ -21,6 +21,7 @@ import { Search, Download, Filter, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Chip from '@/components/ui/Chip';
 import { api, Transaction } from '@/lib/api';
+import X402Fees from './X402Fees';
 
 const DashboardPayments: React.FC = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -55,6 +56,8 @@ const DashboardPayments: React.FC = () => {
           <Button size="sm">New Payment</Button>
         </div>
       </div>
+
+      <X402Fees />
 
       <Card>
         <CardHeader className="pb-3">

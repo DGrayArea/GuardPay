@@ -5,6 +5,7 @@ import { x402Service } from '../services/x402.service';
 import { webhookService } from '../services/webhook.service';
 import { authenticateJWT, AuthRequest } from '../middleware/auth.middleware';
 import { computeX402Fee, X402_FEE } from '../services/fee.service';
+import { x402FeeLedger, feeRequirements } from '../services/x402-fees.service';
 
 const router: Router = Router();
 
@@ -94,6 +95,7 @@ router.get('/fees', (_req: Request, res: Response) => {
     bps: Number(X402_FEE.bps),
     minAtomic: X402_FEE.min.toString(),
     payees: PAYEE_POLICY,
+    creditLimitAtomic: X402_FEE.creditLimit.toString(),
     collection: 'accrued per settlement against the payee merchant account',
   });
 });
@@ -170,8 +172,23 @@ router.post('/settle', async (req: Request, res: Response) => {
   // The merchant is whoever is being paid, if they are known to us. An unknown
   // payee is still settled — this is a public facilitator.
   const merchant = info.payTo
-    ? (queries.getMerchantByWallet.get(info.payTo) as any)
+    ? (queries.getMerchantByWalletNoCase.get(info.payTo) as any)
     : null;
+
+  // A merchant who has run up more unpaid fees than the credit limit allows
+  // gets no more gas from us until they settle up from the dashboard.
+  if (merchant?.id && X402_FEE.creditLimit > 0n && info.asset) {
+    const owed = x402FeeLedger(merchant.id).find(
+      (row) => row.network === info.network && row.asset === info.asset!.toLowerCase()
+    );
+    if (owed && BigInt(owed.owed) >= X402_FEE.creditLimit) {
+      return res.status(402).json({
+        success: false,
+        errorReason: 'facilitator_fee_overdue',
+        detail: 'The payee owes GuardPay facilitator fees above its credit limit.',
+      });
+    }
+  }
 
   if (PAYEE_POLICY === 'merchants' && !merchant) {
     return res.status(403).json({
@@ -274,6 +291,102 @@ router.get('/payments', (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Error loading x402 payments:', error);
     res.status(500).json({ error: 'Failed to load x402 payments' });
+  }
+});
+
+/** Facilitator fees this merchant owes, per network and asset, with the terms to pay them. */
+router.get('/fees/owed', async (req: AuthRequest, res: Response) => {
+  try {
+    const rows = x402FeeLedger(req.merchantId!);
+    const withTerms = await Promise.all(
+      rows.map(async (row) => ({
+        ...row,
+        paymentRequirements:
+          BigInt(row.owed) > 0n && x402Service.isConfigured
+            ? await feeRequirements(row.network, row.asset, row.owed).catch(() => null)
+            : null,
+      }))
+    );
+    res.json({ fees: withTerms, collecting: Boolean(process.env.PLATFORM_FEE_ADDRESS) });
+  } catch (error) {
+    console.error('Error loading x402 fees owed:', error);
+    res.status(500).json({ error: 'Failed to load x402 fees owed' });
+  }
+});
+
+/**
+ * Pay down accrued fees with a signed EIP-3009 authorization to the platform
+ * fee address, settled through this facilitator. The requirements are rebuilt
+ * here from the signed amount, never taken from the client, and the amount
+ * must not exceed what is owed.
+ */
+router.post('/fees/pay', async (req: AuthRequest, res: Response) => {
+  if (!x402Service.isConfigured) return unavailable(res);
+
+  const { paymentPayload } = req.body ?? {};
+  const network = paymentPayload?.accepted?.network;
+  const asset = String(paymentPayload?.accepted?.asset ?? '').toLowerCase();
+  const auth = paymentPayload?.payload?.authorization;
+  if (!network || !asset || !auth?.value) {
+    return res.status(400).json({ error: 'a signed x402 v2 paymentPayload is required' });
+  }
+
+  let value: bigint;
+  try {
+    value = BigInt(auth.value);
+  } catch {
+    return res.status(400).json({ error: 'authorization.value is not an integer' });
+  }
+
+  const owed = x402FeeLedger(req.merchantId!).find(
+    (row) => row.network === network && row.asset === asset
+  );
+  if (!owed || value <= 0n || value > BigInt(owed.owed)) {
+    return res.status(400).json({
+      error: 'amount must be positive and no more than what is owed',
+      owed: owed?.owed ?? '0',
+    });
+  }
+
+  let requirements;
+  try {
+    requirements = await feeRequirements(network, asset, value.toString());
+  } catch (error: any) {
+    return res.status(503).json({ error: error?.message ?? 'fee collection is not configured' });
+  }
+  const payload = { ...paymentPayload, accepted: requirements };
+
+  const paymentId = x402Service.paymentId(payload);
+  const rowId = uuidv4();
+  try {
+    queries.recordX402FeePayment.run(
+      rowId,
+      req.merchantId!,
+      paymentId,
+      network,
+      asset,
+      value.toString(),
+      auth.from ?? null
+    );
+  } catch {
+    return res.status(409).json({ error: 'this authorization was already submitted' });
+  }
+
+  try {
+    const result: any = await x402Service.settle(payload, requirements);
+    const success = result?.success !== false;
+    queries.settleX402FeePayment.run(
+      success ? 'settled' : 'failed',
+      result?.transaction ?? null,
+      success ? null : (result?.errorReason ?? 'settlement failed'),
+      rowId
+    );
+    if (!success) return res.status(400).json(result);
+    res.json({ ...result, fees: x402FeeLedger(req.merchantId!) });
+  } catch (error: any) {
+    console.error('x402 fee payment error:', error);
+    queries.settleX402FeePayment.run('failed', null, error?.message ?? 'settlement failed', rowId);
+    res.status(502).json({ error: 'facilitator could not settle the fee payment' });
   }
 });
 

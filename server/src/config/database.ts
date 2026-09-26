@@ -254,6 +254,27 @@ export function initializeDatabase() {
   // Facilitator fee owed by the payee, atomic units, fixed at settlement time.
   addColumn('x402_payments', 'fee_amount', "TEXT DEFAULT '0'");
 
+  // Merchants paying down their accrued x402 fees. Settled through this same
+  // facilitator, so `payment_id` (the EIP-3009 nonce) doubles as replay guard.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS x402_fee_payments (
+      id TEXT PRIMARY KEY,
+      merchant_id TEXT NOT NULL,
+      payment_id TEXT UNIQUE,
+      network TEXT NOT NULL,
+      asset TEXT NOT NULL,
+      amount TEXT NOT NULL,
+      payer TEXT,
+      status TEXT NOT NULL DEFAULT 'settling',
+      tx_hash TEXT,
+      error TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      settled_at DATETIME
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_x402_fee_payments_merchant ON x402_fee_payments(merchant_id);
+  `);
+
   // --- Two-sided marketplace: buyer/seller identities ------------------------
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
@@ -325,6 +346,10 @@ export function saveDatabase() {}
 export const queries = {
   // Merchants
   getMerchantByWallet: stmt('SELECT * FROM merchants WHERE wallet_address = ?'),
+  // x402 payees arrive in whatever casing the resource server used.
+  getMerchantByWalletNoCase: stmt(
+    'SELECT * FROM merchants WHERE wallet_address = ? COLLATE NOCASE'
+  ),
   getMerchantById: stmt('SELECT * FROM merchants WHERE id = ?'),
   getMerchantByApiKey: stmt('SELECT * FROM merchants WHERE api_key = ?'),
   createMerchant: stmt(
@@ -451,6 +476,29 @@ export const queries = {
             COALESCE(SUM(CASE WHEN status = 'settled' THEN CAST(amount AS REAL) ELSE 0 END), 0) AS volume,
             COALESCE(SUM(CASE WHEN status = 'settled' THEN CAST(fee_amount AS REAL) ELSE 0 END), 0) AS fees
        FROM x402_payments WHERE merchant_id = ?`
+  ),
+
+  // x402 fees owed. Atomic units fit comfortably in SQLite's 64-bit INTEGER.
+  getX402FeesAccrued: stmt(
+    `SELECT network, LOWER(asset) AS asset,
+            COALESCE(SUM(CAST(fee_amount AS INTEGER)), 0) AS accrued
+       FROM x402_payments
+      WHERE merchant_id = ? AND status = 'settled' AND asset IS NOT NULL
+      GROUP BY network, LOWER(asset)`
+  ),
+  getX402FeesPaid: stmt(
+    `SELECT network, LOWER(asset) AS asset,
+            COALESCE(SUM(CAST(amount AS INTEGER)), 0) AS paid
+       FROM x402_fee_payments
+      WHERE merchant_id = ? AND status IN ('settled', 'settling')
+      GROUP BY network, LOWER(asset)`
+  ),
+  recordX402FeePayment: stmt(
+    `INSERT INTO x402_fee_payments (id, merchant_id, payment_id, network, asset, amount, payer, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'settling')`
+  ),
+  settleX402FeePayment: stmt(
+    "UPDATE x402_fee_payments SET status = ?, tx_hash = ?, error = ?, settled_at = datetime('now') WHERE id = ?"
   ),
 
   // Users (marketplace side)

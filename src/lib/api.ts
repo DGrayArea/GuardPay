@@ -260,6 +260,27 @@ export interface MerchantProfile {
   apiKey?: string;
 }
 
+export interface X402PaymentRequirements {
+  scheme: string;
+  network: string;
+  asset: string;
+  amount: string;
+  payTo: string;
+  maxTimeoutSeconds: number;
+  extra: { name: string; version: string };
+}
+
+/** x402 facilitator fees owed on one network/asset, in atomic units. */
+export interface X402FeeBalance {
+  network: string;
+  asset: string;
+  accrued: string;
+  paid: string;
+  owed: string;
+  /** Terms to sign when paying the balance; null when nothing is owed or collection is off. */
+  paymentRequirements: X402PaymentRequirements | null;
+}
+
 export interface Stats {
   /** Net of platform fees — what the merchant actually keeps. */
   totalVolume: number;
@@ -537,6 +558,17 @@ class ApiService {
   }
 
   // Webhooks
+  // x402 facilitator fees
+  async getX402FeesOwed(): Promise<{ fees: X402FeeBalance[]; collecting: boolean }> {
+    const response = await this.client.get('/x402/fees/owed');
+    return response.data;
+  }
+
+  async payX402Fees(paymentPayload: unknown): Promise<{ transaction?: string }> {
+    const response = await this.client.post('/x402/fees/pay', { paymentPayload });
+    return response.data;
+  }
+
   async getWebhooks(): Promise<any[]> {
     const response = await this.client.get('/webhooks');
     return response.data;

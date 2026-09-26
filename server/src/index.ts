@@ -150,6 +150,7 @@ async function startServer() {
       console.log('  GET    /api/escrows');
       console.log('  POST   /api/escrows');
       console.log('  GET    /api/x402/supported');
+      console.log('  GET    /api/x402/fees');
       console.log('  POST   /api/x402/verify');
       console.log('  POST   /api/x402/settle');
       console.log('');

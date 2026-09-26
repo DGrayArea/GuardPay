@@ -57,7 +57,7 @@ The web app is on Vercel. The API in `server/` is a long-running Express process
 2. In Vercel, set `NEXT_PUBLIC_API_URL` to the Render URL (for example `https://guardpay-api.onrender.com`) and redeploy.
 3. If the site uses a different domain, add it to `FRONTEND_URL` on Render (comma-separated).
 
-Render's free plan sleeps when idle and resets its disk on redeploy, so demo data doesn't persist. That's fine for a portfolio build; add a persistent disk and set `DATABASE_PATH` on it to keep data.
+Render's free plan sleeps after 15 idle minutes. To keep it awake, add a repository variable `API_URL` with the Render URL: the `Keep API awake` workflow then pings `/health` every 10 minutes. One always-on service fits inside the free plan's 750 hours a month. The free disk is still wiped on each redeploy; for data that survives, use a paid plan with a persistent disk and point `DATABASE_PATH` at it.
 
 ---
 

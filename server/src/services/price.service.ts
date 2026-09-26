@@ -21,11 +21,15 @@ class PriceService {
     MATIC: 'matic-network',
   };
 
+  /** Dollar stablecoins, which can fall back to their peg when the feed is down. */
+  private usdStables = new Set(['USDC', 'USDT']);
+
   /**
-   * Get cryptocurrency price in USD
+   * Get a cryptocurrency's price in a fiat currency (USD by default).
    */
-  async getPrice(crypto: string): Promise<number> {
-    const cacheKey = `${crypto}_USD`;
+  async getPrice(crypto: string, fiat: string = 'USD'): Promise<number> {
+    const vs = fiat.toLowerCase();
+    const cacheKey = `${crypto}_${vs.toUpperCase()}`;
     const cached = this.cache[cacheKey];
 
     // Return cached price if still valid
@@ -42,11 +46,11 @@ class PriceService {
       const response = await axios.get(`${this.baseUrl}/simple/price`, {
         params: {
           ids: coinId,
-          vs_currencies: 'usd',
+          vs_currencies: vs,
         },
       });
 
-      const price = response.data[coinId]?.usd;
+      const price = response.data[coinId]?.[vs];
       if (!price) {
         throw new Error(`Price not found for ${crypto}`);
       }
@@ -66,7 +70,15 @@ class PriceService {
         console.warn(`Using expired cache for ${crypto}`);
         return cached.price;
       }
-      
+
+      // A free price feed rate-limits often. A dollar stablecoin priced in
+      // dollars is still quoteable at its peg; checkout rounds up, so the
+      // merchant is never short-changed by the fallback.
+      if (vs === 'usd' && this.usdStables.has(crypto.toUpperCase())) {
+        console.warn(`Using $1 peg for ${crypto}`);
+        return 1;
+      }
+
       throw new Error(`Failed to fetch price for ${crypto}`);
     }
   }
@@ -75,9 +87,9 @@ class PriceService {
    * Convert fiat amount to cryptocurrency amount
    */
   async convertToCrypto(fiatAmount: number, fiatCurrency: string, crypto: string): Promise<number> {
-    // For simplicity, assuming fiatCurrency is always USD
-    // In production, you'd convert fiat to USD first if needed
-    const cryptoPrice = await this.getPrice(crypto);
+    // Priced directly in the link's currency, so a EUR link is not charged
+    // as if it were dollars.
+    const cryptoPrice = await this.getPrice(crypto, fiatCurrency || 'USD');
     return fiatAmount / cryptoPrice;
   }
 
@@ -85,7 +97,7 @@ class PriceService {
    * Convert cryptocurrency amount to fiat
    */
   async convertToFiat(cryptoAmount: number, crypto: string, fiatCurrency: string = 'USD'): Promise<number> {
-    const cryptoPrice = await this.getPrice(crypto);
+    const cryptoPrice = await this.getPrice(crypto, fiatCurrency);
     return cryptoAmount * cryptoPrice;
   }
 

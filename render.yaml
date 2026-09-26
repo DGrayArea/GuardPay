@@ -1,0 +1,36 @@
+# One-click deploy of the GuardPay API on Render (dashboard → New → Blueprint).
+# The web app stays on Vercel; point it here with NEXT_PUBLIC_API_URL.
+services:
+  - type: web
+    name: guardpay-api
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
+    startCommand: node dist/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      # The deployed web app, so the browser is allowed to call this API.
+      - key: FRONTEND_URL
+        value: https://guard-pay.vercel.app
+      - key: JWT_SECRET
+        generateValue: true
+      - key: KEY_ENCRYPTION_KEY
+        generateValue: true
+      # A testnet-only 12-word phrase. Paste it in the dashboard; never reuse a real wallet's.
+      - key: MASTER_SEED
+        sync: false
+      - key: ETH_RPC_URL
+        value: https://ethereum-sepolia-rpc.publicnode.com
+      - key: BSC_RPC_URL
+        value: https://bsc-testnet-rpc.publicnode.com
+      - key: BASE_RPC_URL
+        value: https://sepolia.base.org
+      - key: SOLANA_RPC_URL
+        value: https://api.devnet.solana.com
+      - key: X402_NETWORKS
+        value: eip155:84532

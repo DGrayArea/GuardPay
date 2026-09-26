@@ -49,6 +49,18 @@ pnpm dev:all
 
 ---
 
+## Deploying the demo
+
+The web app is on Vercel. The API in `server/` is a long-running Express process with SQLite and chain watchers, so it can't run on Vercel. Host it separately:
+
+1. On Render, go to **New → Blueprint**, pick this repo, and it reads `render.yaml`. When asked for `MASTER_SEED`, paste a **new, testnet-only** 12-word phrase (`npx bip39-cli generate`).
+2. In Vercel, set `NEXT_PUBLIC_API_URL` to the Render URL (for example `https://guardpay-api.onrender.com`) and redeploy.
+3. If the site uses a different domain, add it to `FRONTEND_URL` on Render (comma-separated).
+
+Render's free plan sleeps when idle and resets its disk on redeploy, so demo data doesn't persist. That's fine for a portfolio build; add a persistent disk and set `DATABASE_PATH` on it to keep data.
+
+---
+
 ## 💰 Get Testnet Funds
 
 ### Ethereum Sepolia (ETH)

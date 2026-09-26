@@ -1,195 +1,158 @@
+'use client';
 
-import React from 'react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, PieChart, LineChart, BarChart, ArrowUp, ArrowDown } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Loader2 } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { api, Transaction } from '@/lib/api';
+import RevenueChart from '@/components/dashboard/charts/RevenueChart';
+import ChainVolumeChart from '@/components/dashboard/charts/ChainVolumeChart';
 
+const RANGES = { '7d': 7, '30d': 30, '90d': 90 } as const;
+type Range = keyof typeof RANGES;
+
+const money = (n: number) =>
+  n.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
+
+/** Every figure here is computed from the merchant's own completed payments. */
 const DashboardAnalytics: React.FC = () => {
+  const [range, setRange] = useState<Range>('30d');
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    api
+      .getTransactions()
+      .then(setTransactions)
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const days = RANGES[range];
+
+  const inRange = useMemo(() => {
+    const since = Date.now() - days * 86_400_000;
+    return transactions.filter(
+      (t) => t.status === 'completed' && new Date(t.timestamp).getTime() >= since
+    );
+  }, [transactions, days]);
+
+  const summary = useMemo(() => {
+    const volume = inRange.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+    const customers = new Set(inRange.map((t) => t.customer).filter(Boolean)).size;
+    return {
+      volume,
+      count: inRange.length,
+      average: inRange.length ? volume / inRange.length : 0,
+      customers,
+    };
+  }, [inRange]);
+
+  const topLinks = useMemo(() => {
+    const byTitle = new Map<string, { count: number; volume: number }>();
+    for (const t of inRange) {
+      const key = t.linkTitle || 'Direct payment';
+      const entry = byTitle.get(key) ?? { count: 0, volume: 0 };
+      entry.count += 1;
+      entry.volume += Number(t.amount || 0);
+      byTitle.set(key, entry);
+    }
+    return [...byTitle.entries()].sort((a, b) => b[1].volume - a[1].volume).slice(0, 5);
+  }, [inRange]);
+
+  const cards = [
+    { title: 'Volume', value: money(summary.volume) },
+    { title: 'Payments', value: summary.count.toLocaleString() },
+    { title: 'Average payment', value: money(summary.average) },
+    { title: 'Unique customers', value: summary.customers.toLocaleString() },
+  ];
+
   return (
     <div className="space-y-6 p-4 sm:p-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">Analytics</h1>
-        <Tabs defaultValue="30d">
+        <Tabs value={range} onValueChange={(v) => setRange(v as Range)}>
           <TabsList>
             <TabsTrigger value="7d">7 days</TabsTrigger>
             <TabsTrigger value="30d">30 days</TabsTrigger>
             <TabsTrigger value="90d">90 days</TabsTrigger>
-            <TabsTrigger value="all">All time</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[
-          { title: "Total Volume", value: "$42,456.78", change: 12.5, icon: <BarChart size={20} /> },
-          { title: "Total Transactions", value: "1,245", change: 8.2, icon: <BarChart3 size={20} /> },
-          { title: "Average Transaction", value: "$34.10", change: -2.4, icon: <LineChart size={20} /> },
-          { title: "Active Customers", value: "164", change: 5.6, icon: <PieChart size={20} /> },
-        ].map((stat, index) => (
-          <Card key={index}>
-            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {stat.title}
-              </CardTitle>
-              <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center">
-                {stat.icon}
-              </div>
+      {error && (
+        <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          Couldn't load payments. Check that the API is running.
+        </p>
+      )}
+
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {cards.map((c) => (
+          <Card key={c.title}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">{c.title}</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-xl font-bold tracking-tight text-ink sm:text-2xl">{stat.value}</div>
-              <div className={`flex items-center mt-1 text-xs ${
-                stat.change > 0 ? 'text-green-600' : 'text-red-600'
-              }`}>
-                {stat.change > 0 ? (
-                  <ArrowUp className="mr-1 h-3 w-3" />
-                ) : (
-                  <ArrowDown className="mr-1 h-3 w-3" />
-                )}
-                <span>{Math.abs(stat.change)}% from last period</span>
-              </div>
+              {loading ? (
+                <Loader2 className="h-5 w-5 animate-spin text-ink-soft" />
+              ) : (
+                <div className="text-lg font-bold tracking-tight text-ink sm:text-2xl">{c.value}</div>
+              )}
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Main Chart */}
       <Card>
         <CardHeader>
-          <CardTitle>Payment Volume</CardTitle>
-          <CardDescription>
-            Total transaction volume over time
-          </CardDescription>
+          <CardTitle>Payment volume</CardTitle>
+          <CardDescription>Completed payments per day, last {days} days</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-80 flex flex-col items-center justify-center bg-gray-50 rounded-md">
-            <BarChart3 size={48} className="text-gray-300 mb-2" />
-            <span className="text-ink-soft">Chart visualization placeholder</span>
-            <span className="text-xs text-ink-soft mt-2">Data would be rendered here using Recharts library</span>
-          </div>
+          <RevenueChart transactions={transactions} days={days} />
         </CardContent>
       </Card>
 
-      {/* Secondary Charts */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Transaction Types</CardTitle>
-            <CardDescription>
-              Breakdown by payment type
-            </CardDescription>
+            <CardTitle>Volume by chain</CardTitle>
+            <CardDescription>Completed payments, all time</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-64 flex flex-col items-center justify-center bg-gray-50 rounded-md">
-              <PieChart size={40} className="text-gray-300 mb-2" />
-              <span className="text-ink-soft">Pie chart placeholder</span>
-              <div className="mt-4 grid grid-cols-2 gap-4 w-full max-w-xs">
-                <div className="flex items-center">
-                  <div className="w-3 h-3 rounded-full bg-web3-blue mr-2"></div>
-                  <span className="text-sm">Direct (65%)</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 rounded-full bg-web3-skyBlue mr-2"></div>
-                  <span className="text-sm">Escrow (35%)</span>
-                </div>
-              </div>
-            </div>
+            <ChainVolumeChart transactions={transactions} />
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Payment Currencies</CardTitle>
-            <CardDescription>
-              Distribution by cryptocurrency
-            </CardDescription>
+            <CardTitle>Top payment links</CardTitle>
+            <CardDescription>By volume, last {days} days</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-64 flex flex-col items-center justify-center bg-gray-50 rounded-md">
-              <PieChart size={40} className="text-gray-300 mb-2" />
-              <span className="text-ink-soft">Pie chart placeholder</span>
-              <div className="mt-4 grid grid-cols-2 gap-4 w-full max-w-xs">
-                <div className="flex items-center">
-                  <div className="w-3 h-3 rounded-full bg-blue-500 mr-2"></div>
-                  <span className="text-sm">ETH (42%)</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
-                  <span className="text-sm">USDC (38%)</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 rounded-full bg-yellow-500 mr-2"></div>
-                  <span className="text-sm">DAI (12%)</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 rounded-full bg-purple-500 mr-2"></div>
-                  <span className="text-sm">Others (8%)</span>
-                </div>
-              </div>
-            </div>
+            {topLinks.length === 0 ? (
+              <p className="py-8 text-center text-sm text-ink-soft">
+                {loading ? 'Loading…' : 'No completed payments in this period yet.'}
+              </p>
+            ) : (
+              <ul className="divide-y">
+                {topLinks.map(([title, v]) => (
+                  <li key={title} className="flex items-center justify-between gap-4 py-3 text-sm">
+                    <span className="min-w-0 truncate text-ink">{title}</span>
+                    <span className="shrink-0 text-right">
+                      <span className="font-medium text-ink">{money(v.volume)}</span>
+                      <span className="ml-2 text-xs text-ink-soft">
+                        {v.count} {v.count === 1 ? 'payment' : 'payments'}
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </CardContent>
         </Card>
       </div>
-
-      {/* Customer Analytics */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Customer Insights</CardTitle>
-          <CardDescription>
-            Customer activity and engagement metrics
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h3 className="font-medium mb-2">Top Customers</h3>
-              <div className="space-y-3">
-                {[
-                  { name: "John D.", transactions: 24, volume: "$3,451" },
-                  { name: "Sarah M.", transactions: 18, volume: "$2,845" },
-                  { name: "David K.", transactions: 15, volume: "$2,322" },
-                ].map((customer, index) => (
-                  <div key={index} className="flex justify-between">
-                    <span>{customer.name}</span>
-                    <span className="text-ink-soft">{customer.volume}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h3 className="font-medium mb-2">New vs Returning</h3>
-              <div className="flex flex-col items-center justify-center h-32">
-                <PieChart size={32} className="text-gray-300 mb-2" />
-                <div className="grid grid-cols-2 gap-4 w-full max-w-xs">
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 rounded-full bg-blue-500 mr-2"></div>
-                    <span className="text-sm">New (35%)</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
-                    <span className="text-sm">Returning (65%)</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h3 className="font-medium mb-2">Customer Growth</h3>
-              <div className="flex flex-col items-center justify-center h-32">
-                <LineChart size={32} className="text-gray-300 mb-2" />
-                <span className="text-xs text-ink-soft">+24% growth this month</span>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };

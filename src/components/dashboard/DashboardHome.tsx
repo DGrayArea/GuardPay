@@ -10,7 +10,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import Chip from '@/components/ui/Chip';
 import Link from 'next/link';
 import { api, Stats, Transaction } from '@/lib/api';
 import RevenueChart from '@/components/dashboard/charts/RevenueChart';
@@ -34,12 +33,16 @@ const DashboardHome: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
         setLoading(true);
-        const s = await api.getStats();
-        const tx = await api.getTransactions();
-        setStats(s);
-        setAllTx(tx);
-        setRecentTx(tx.slice(0, 5));
-        setLoading(false);
+        try {
+          const [s, tx] = await Promise.all([api.getStats(), api.getTransactions()]);
+          setStats(s);
+          setAllTx(tx);
+          setRecentTx(tx.slice(0, 5));
+        } catch {
+          // Leave the zeroed defaults in place rather than spinning forever.
+        } finally {
+          setLoading(false);
+        }
     };
     loadData();
   }, []);
@@ -48,11 +51,9 @@ const DashboardHome: React.FC = () => {
     <div className="space-y-6 p-4 sm:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">Dashboard</h1>
-        <div className="flex items-center space-x-4">
-          <Chip variant="primary" size="sm">Premium Merchant</Chip>
-          <Button variant="outline" size="sm">Create Invoice</Button>
-          <Button size="sm">New Payment</Button>
-        </div>
+        <Link href="/dashboard/links">
+          <Button size="sm">New payment link</Button>
+        </Link>
       </div>
 
       {/* Stats Overview */}

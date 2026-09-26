@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { WagmiProvider, createConfig, http } from 'wagmi';
-import { mainnet, sepolia, bsc, bscTestnet, polygon, polygonAmoy, base, baseSepolia } from 'wagmi/chains';
+import { sepolia, bscTestnet, baseSepolia } from 'wagmi/chains';
 import { ConnectKitProvider, getDefaultConfig } from 'connectkit';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
@@ -21,22 +21,20 @@ const queryClient = new QueryClient();
 
 const wagmiConfig = createConfig(
   getDefaultConfig({
-    chains: [mainnet, sepolia, bsc, bscTestnet, polygon, polygonAmoy, base, baseSepolia],
+    // Testnets only: GuardPay is a dev build. Leaving mainnet out also stops
+    // ConnectKit polling mainnet for ENS names, whose default public RPC
+    // rejects browser requests with CORS errors.
+    chains: [baseSepolia, sepolia, bscTestnet],
     transports: {
-      [mainnet.id]: http(),
-      [sepolia.id]: http(),
-      [bsc.id]: http(),
-      [bscTestnet.id]: http(),
-      [polygon.id]: http(),
-      [polygonAmoy.id]: http(),
-      [base.id]: http(),
-      [baseSepolia.id]: http(),
+      [baseSepolia.id]: http(process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org'),
+      [sepolia.id]: http(process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com'),
+      [bscTestnet.id]: http(process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL || 'https://bsc-testnet-rpc.publicnode.com'),
     },
     walletConnectProjectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '',
     appName: 'GuardPay',
-    appDescription: 'Crypto Payment Gateway',
-    appUrl: 'https://guardpay.demo',
-    appIcon: '/favicon.ico',
+    appDescription: 'Crypto payments, escrow and x402 settlement',
+    appUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://guard-pay.vercel.app',
+    appIcon: '/icon-192.png',
   })
 );
 

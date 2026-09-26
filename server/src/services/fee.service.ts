@@ -125,6 +125,37 @@ export function ceilCrypto(amount: number, decimals = 8): string {
   return ceiled.toFixed(decimals);
 }
 
+/**
+ * x402 facilitator fee.
+ *
+ * An `exact` x402 payment moves tokens payer → payee directly via EIP-3009, so
+ * the fee cannot be skimmed from the transfer itself. Instead it accrues
+ * against the payee's merchant account per settlement and is collected
+ * separately. Amounts here are in the token's atomic units (USDC: 6dp), the
+ * same units x402 carries, so no float or fiat conversion is involved.
+ */
+export const X402_FEE = {
+  bps: BigInt(Math.max(0, Math.trunc(num('X402_FEE_BPS', 100)))), // 1.00%
+  /** Floor per settlement, atomic units — covers the gas GuardPay pays. */
+  min: BigInt(Math.max(0, Math.trunc(num('X402_FEE_MIN', 0)))),
+};
+
+/** Fee owed for one settled x402 payment, in atomic units. Never exceeds the amount. */
+export function computeX402Fee(amount: string): string {
+  let value: bigint;
+  try {
+    value = BigInt(amount);
+  } catch {
+    return '0';
+  }
+  if (value <= 0n) return '0';
+
+  let fee = (value * X402_FEE.bps) / 10_000n;
+  if (fee < X402_FEE.min) fee = X402_FEE.min;
+  if (fee > value) fee = value;
+  return fee.toString();
+}
+
 /** Display precision per asset — 8dp of SOL is noise to a human. */
 export const DISPLAY_DECIMALS: Record<string, number> = {
   ETH: 6,

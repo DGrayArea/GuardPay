@@ -251,6 +251,8 @@ export function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_x402_merchant ON x402_payments(merchant_id);
     CREATE INDEX IF NOT EXISTS idx_x402_status ON x402_payments(status);
   `);
+  // Facilitator fee owed by the payee, atomic units, fixed at settlement time.
+  addColumn('x402_payments', 'fee_amount', "TEXT DEFAULT '0'");
 
   // --- Two-sided marketplace: buyer/seller identities ------------------------
   db.exec(`
@@ -438,7 +440,7 @@ export const queries = {
   ),
   getX402ByPaymentId: stmt('SELECT * FROM x402_payments WHERE payment_id = ?'),
   settleX402: stmt(
-    "UPDATE x402_payments SET status = ?, tx_hash = ?, error = ?, settled_at = datetime('now') WHERE id = ?"
+    "UPDATE x402_payments SET status = ?, tx_hash = ?, error = ?, fee_amount = ?, settled_at = datetime('now') WHERE id = ?"
   ),
   getX402ByMerchant: stmt(
     'SELECT * FROM x402_payments WHERE merchant_id = ? ORDER BY created_at DESC LIMIT 200'
@@ -446,7 +448,8 @@ export const queries = {
   getX402Stats: stmt(
     `SELECT COUNT(*) AS total,
             SUM(CASE WHEN status = 'settled' THEN 1 ELSE 0 END) AS settled,
-            COALESCE(SUM(CASE WHEN status = 'settled' THEN CAST(amount AS REAL) ELSE 0 END), 0) AS volume
+            COALESCE(SUM(CASE WHEN status = 'settled' THEN CAST(amount AS REAL) ELSE 0 END), 0) AS volume,
+            COALESCE(SUM(CASE WHEN status = 'settled' THEN CAST(fee_amount AS REAL) ELSE 0 END), 0) AS fees
        FROM x402_payments WHERE merchant_id = ?`
   ),
 

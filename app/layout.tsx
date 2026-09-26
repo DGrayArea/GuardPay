@@ -21,11 +21,11 @@ const mono = JetBrains_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: 'GuardPay — Crypto payments with escrow protection',
+    default: 'GuardPay: crypto payments, escrow and x402 settlement',
     template: '%s · GuardPay',
   },
   description:
-    'Accept crypto payments across Ethereum, Base, BSC and Solana. Shareable payment links, automatic on-chain confirmation, signed webhooks, and smart-contract escrow that protects both sides.',
+    'Accept crypto payments on Ethereum, Base, BNB Chain and Solana. Payment links, on-chain escrow for deals between strangers, and x402 settlement for paid APIs and AI agents.',
   applicationName: 'GuardPay',
   keywords: [
     'crypto payment gateway',
@@ -37,6 +37,9 @@ export const metadata: Metadata = {
     'web3 checkout',
     'Solana payments',
     'Base payments',
+    'x402 facilitator',
+    'pay per request API',
+    'AI agent payments',
   ],
   authors: [{ name: 'GuardPay' }],
   creator: 'GuardPay',
@@ -44,15 +47,15 @@ export const metadata: Metadata = {
     type: 'website',
     siteName: 'GuardPay',
     url: siteUrl,
-    title: 'GuardPay — Crypto payments with escrow protection',
+    title: 'GuardPay: crypto payments, escrow and x402 settlement',
     description:
-      'Shareable payment links, automatic on-chain confirmation, and smart-contract escrow that protects both sides.',
+      'Get paid in crypto. Hold it in escrow when trust is thin. Settle x402 payments for APIs and agents.',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'GuardPay — Crypto payments with escrow protection',
+    title: 'GuardPay: crypto payments, escrow and x402 settlement',
     description:
-      'Shareable payment links, automatic on-chain confirmation, and smart-contract escrow that protects both sides.',
+      'Get paid in crypto. Hold it in escrow when trust is thin. Settle x402 payments for APIs and agents.',
   },
   manifest: '/manifest.webmanifest',
   robots: {
@@ -69,7 +72,7 @@ export const viewport: Viewport = {
   maximumScale: 5,
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#0A1024' },
+    { media: '(prefers-color-scheme: dark)', color: '#070B14' },
   ],
 };
 

@@ -106,7 +106,7 @@ const Login: React.FC = () => {
         <div className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
             <div className="mb-8 text-center">
                 <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-ink">
-                    <LogoMark className="h-9 w-9 text-brand" />
+                    <LogoMark className="h-9 w-9 text-[#34E5A1]" />
                 </div>
                 <h1 className="text-3xl font-bold tracking-tight text-ink">
                     GuardPay <span className="text-ink-soft">Merchant</span>

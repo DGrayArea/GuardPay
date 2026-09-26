@@ -1,4 +1,12 @@
-import { createWalletClient, http, publicActions, type Chain } from 'viem';
+import {
+  createWalletClient,
+  getAddress,
+  http,
+  parseAbi,
+  publicActions,
+  type Chain,
+  type PublicClient,
+} from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { baseSepolia, base } from 'viem/chains';
 import { x402Facilitator } from '@x402/core/facilitator';
@@ -53,6 +61,8 @@ class X402Service {
   private facilitator: x402Facilitator | null = null;
   private signerAddress: string | null = null;
   private initError: string | null = null;
+  private readers = new Map<string, PublicClient>();
+  private domains = new Map<string, { name: string; version: string }>();
 
   constructor() {
     try {
@@ -96,6 +106,7 @@ class X402Service {
         chain: cfg.chain,
         transport: http(process.env[cfg.rpcEnv] || cfg.fallbackRpc),
       }).extend(publicActions);
+      this.readers.set(network, client as unknown as PublicClient);
 
       // The helper reads a flat `address`, while a viem wallet client carries
       // it on `account` — without this the scheme reports a null signer.
@@ -159,6 +170,32 @@ class X402Service {
    */
   async settle(payload: PaymentPayload, requirements: PaymentRequirements) {
     return this.client().settle(payload, requirements);
+  }
+
+  /**
+   * EIP-712 domain of an EIP-3009 token, read from the contract. The scheme
+   * checks name and version on-chain, so a guessed value would fail verify.
+   */
+  async tokenDomain(network: string, asset: string) {
+    const key = `${network}:${asset.toLowerCase()}`;
+    const cached = this.domains.get(key);
+    if (cached) return cached;
+
+    const reader = this.readers.get(network);
+    if (!reader) throw new Error(`x402 network ${network} is not enabled`);
+
+    const abi = parseAbi([
+      'function name() view returns (string)',
+      'function version() view returns (string)',
+    ]);
+    const address = getAddress(asset);
+    const [name, version] = await Promise.all([
+      reader.readContract({ address, abi, functionName: 'name' }),
+      reader.readContract({ address, abi, functionName: 'version' }),
+    ]);
+    const domain = { name, version };
+    this.domains.set(key, domain);
+    return domain;
   }
 
   /**

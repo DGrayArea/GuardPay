@@ -7,6 +7,18 @@ import { webhookService } from '../services/webhook.service';
 
 const router: Router = Router();
 
+/** Every event GuardPay can send. '*' subscribes to all of them. */
+export const WEBHOOK_EVENTS = [
+  'payment.confirming',
+  'payment.completed',
+  'payment.underpaid',
+  'payment.expired',
+  'escrow.funded',
+  'escrow.released',
+  'escrow.refunded',
+  'escrow.disputed',
+] as const;
+
 // All routes require authentication
 router.use(authenticateJWT);
 
@@ -44,11 +56,21 @@ router.post('/', (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'URL and events array required' });
     }
 
-    // Validate URL
+    let parsed: URL;
     try {
-      new URL(url);
+      parsed = new URL(url);
     } catch {
       return res.status(400).json({ error: 'Invalid URL' });
+    }
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+      return res.status(400).json({ error: 'Webhook URL must be http(s)' });
+    }
+
+    const unknown = events.filter((e: unknown) => e !== '*' && !WEBHOOK_EVENTS.includes(e as any));
+    if (events.length === 0 || unknown.length > 0) {
+      return res.status(400).json({
+        error: unknown.length ? `Unknown events: ${unknown.join(', ')}` : 'Pick at least one event',
+      });
     }
 
     // Generate webhook secret
@@ -100,11 +122,11 @@ router.post('/:id/test', async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Webhook not found' });
     }
 
-    // Send test webhook
-    await webhookService.triggerWebhook(req.merchantId!, 'test', {
+    // Sent to this webhook only, whatever events it subscribes to.
+    webhookService.enqueue(req.merchantId!, webhook.id, 'test', {
       message: 'This is a test webhook from GuardPay',
-      timestamp: new Date().toISOString(),
     });
+    void webhookService.flush();
 
     res.json({ message: 'Test webhook sent' });
   } catch (error) {

@@ -2,6 +2,17 @@ import { Router, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { db, queries } from '../config/database';
 import { authenticateJWT, AuthRequest, generateAPIKey } from '../middleware/auth.middleware';
+import { PublicKey } from '@solana/web3.js';
+
+const isEvmAddress = (a: string) => /^0x[0-9a-fA-F]{40}$/.test(a);
+
+const isSolanaAddress = (a: string) => {
+  try {
+    return PublicKey.isOnCurve(new PublicKey(a).toBytes());
+  } catch {
+    return false;
+  }
+};
 
 const router: Router = Router();
 
@@ -40,6 +51,17 @@ router.get('/profile', (req: AuthRequest, res: Response) => {
 router.put('/settings', (req: AuthRequest, res: Response) => {
   try {
     const { merchantName, receivingAddress, solanaAddress, defaultCurrency } = req.body;
+
+    // A typo here would send real payments into the void, so reject it outright.
+    if (receivingAddress && !isEvmAddress(receivingAddress)) {
+      return res.status(400).json({ error: 'That EVM address is not valid' });
+    }
+    if (solanaAddress && !isSolanaAddress(solanaAddress)) {
+      return res.status(400).json({ error: 'That Solana address is not valid' });
+    }
+    if (defaultCurrency && !['USD', 'EUR'].includes(defaultCurrency)) {
+      return res.status(400).json({ error: 'Currency must be USD or EUR' });
+    }
 
     queries.updateMerchant.run(
       merchantName || 'Merchant',

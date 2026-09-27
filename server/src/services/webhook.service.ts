@@ -31,22 +31,7 @@ class WebhookService {
       for (const webhook of webhooks) {
         const events = JSON.parse(webhook.events);
         if (!events.includes(event) && !events.includes('*')) continue;
-
-        const payload: WebhookPayload = {
-          id: `evt_${uuidv4().replace(/-/g, '').substring(0, 20)}`,
-          event,
-          data,
-          timestamp: new Date().toISOString(),
-        };
-
-        queries.createDelivery.run(
-          uuidv4(),
-          webhook.id,
-          merchantId,
-          event,
-          JSON.stringify(payload),
-          new Date().toISOString()
-        );
+        this.enqueue(merchantId, webhook.id, event, data);
       }
 
       // Deliver promptly rather than waiting for the next sweep of the queue.
@@ -54,6 +39,25 @@ class WebhookService {
     } catch (error) {
       console.error(`Error queueing webhook for merchant ${merchantId}:`, error);
     }
+  }
+
+  /** Queue one event for one webhook, whatever it subscribes to. */
+  enqueue(merchantId: string, webhookId: string, event: string, data: any) {
+    const payload: WebhookPayload = {
+      id: `evt_${uuidv4().replace(/-/g, '').substring(0, 20)}`,
+      event,
+      data,
+      timestamp: new Date().toISOString(),
+    };
+
+    queries.createDelivery.run(
+      uuidv4(),
+      webhookId,
+      merchantId,
+      event,
+      JSON.stringify(payload),
+      new Date().toISOString()
+    );
   }
 
   /** Back-compat alias for the previous method name. */

@@ -64,6 +64,17 @@ export function authenticateAPIKey(req: AuthRequest, res: Response, next: NextFu
 }
 
 /**
+ * Required authentication by either a dashboard JWT or a merchant API key, for
+ * routes a merchant's own backend should be able to call.
+ */
+export function authenticateMerchant(req: AuthRequest, res: Response, next: NextFunction) {
+  if (req.headers['x-api-key'] && !req.headers.authorization) {
+    return authenticateAPIKey(req, res, next);
+  }
+  return authenticateJWT(req, res, next);
+}
+
+/**
  * Optional authentication - allows both JWT and API key
  */
 export function optionalAuth(req: AuthRequest, res: Response, next: NextFunction) {

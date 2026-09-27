@@ -158,13 +158,17 @@ GET    /api/merchant/profile    # Get merchant details
 PUT    /api/merchant/settings   # Update receiving addresses
 POST   /api/merchant/api-key    # Generate API key
 GET    /api/merchant/stats      # Transaction statistics
-GET    /api/links               # List payment links
-POST   /api/links               # Create payment link
+GET    /api/links               # List payment links (JWT or x-api-key)
+POST   /api/links               # Create payment link (JWT or x-api-key)
+PUT    /api/links/:id           # Update a payment link
+DELETE /api/links/:id           # Archive a payment link (history is kept)
 POST   /api/invoices            # Create invoice with unique address
 GET    /api/invoices/:id        # Get invoice details
 GET    /api/invoices/:id/status # Poll payment status
 GET    /api/webhooks            # List webhooks
 POST   /api/webhooks            # Create webhook
+DELETE /api/webhooks/:id        # Remove webhook
+POST   /api/webhooks/:id/test   # Send a test event to one webhook
 ```
 
 ### Frontend (React + TypeScript)
@@ -205,9 +209,11 @@ curl -X POST http://localhost:3001/api/auth/verify \
 
 ### Create Payment Link
 
+From your own backend, use the API key from Settings. (A dashboard JWT works too.)
+
 ```bash
 curl -X POST http://localhost:3001/api/links \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "x-api-key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Premium Plan",

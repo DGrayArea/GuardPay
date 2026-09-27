@@ -22,7 +22,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     const link = queries.getLinkById.get(linkId) as any;
 
-    if (!link) {
+    if (!link || link.archived_at) {
       return res.status(404).json({ error: 'Payment link not found' });
     }
 

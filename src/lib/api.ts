@@ -250,6 +250,31 @@ export interface Settings {
   defaultCurrency: 'USD' | 'EUR';
 }
 
+export interface Webhook {
+  id: string;
+  url: string;
+  events: string[];
+  enabled: boolean;
+  createdAt: string;
+}
+
+export const WEBHOOK_EVENTS = [
+  'payment.confirming',
+  'payment.completed',
+  'payment.underpaid',
+  'payment.expired',
+  'escrow.funded',
+  'escrow.released',
+  'escrow.refunded',
+  'escrow.disputed',
+] as const;
+
+/** The server's own error message when there is one, else the fallback. */
+export function apiError(error: any, fallback: string): string {
+  if (error?.isAxiosError && !error.response) return "Can't reach GuardPay's API right now.";
+  return error?.response?.data?.error ?? fallback;
+}
+
 export interface MerchantProfile {
   id: string;
   walletAddress: string;
@@ -257,7 +282,8 @@ export interface MerchantProfile {
   receivingAddress: string;
   solanaAddress: string;
   defaultCurrency: string;
-  apiKey?: string;
+  /** Masked, e.g. "gp_3f9a1c...". Null until one is generated. */
+  apiKey?: string | null;
 }
 
 export interface X402PaymentRequirements {
@@ -569,12 +595,12 @@ class ApiService {
     return response.data;
   }
 
-  async getWebhooks(): Promise<any[]> {
+  async getWebhooks(): Promise<Webhook[]> {
     const response = await this.client.get('/webhooks');
     return response.data;
   }
 
-  async createWebhook(url: string, events: string[]): Promise<any> {
+  async createWebhook(url: string, events: string[]): Promise<Webhook & { secret: string }> {
     const response = await this.client.post('/webhooks', { url, events });
     return response.data;
   }

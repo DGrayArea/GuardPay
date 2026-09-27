@@ -4,18 +4,16 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { api, Invoice as InvoiceType } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Clock, AlertTriangle, CheckCircle, Copy, ExternalLink } from 'lucide-react';
+import { Clock, AlertTriangle, CheckCircle, Copy, ExternalLink, Printer } from 'lucide-react';
 import BrandedQR from '@/components/checkout/BrandedQR';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { Logo } from '@/components/brand/Logo';
-import { cn } from '@/lib/utils';
+import { cn, trimAmount } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import WalletPay from '@/components/checkout/WalletPay';
+import { explorerTx, shortHash } from '@/lib/explorers';
 
-/** Drops trailing zeros for reading; the copied value keeps full precision. */
-const trimAmount = (value: string) =>
-  value.includes('.') ? value.replace(/0+$/, '').replace(/\.$/, '') : value;
 
 const Invoice: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -118,18 +116,9 @@ const Invoice: React.FC = () => {
   /** Copies the exact quoted amount — the full precision, not the trimmed display. */
   const copyAmount = () => copy(invoice?.expectedAmount, 'Amount');
 
-  const getExplorerUrl = (txHash: string, chain: string) => {
-    const explorers: { [key: string]: string } = {
-      ETH: `https://sepolia.etherscan.io/tx/${txHash}`,
-      BSC: `https://testnet.bscscan.com/tx/${txHash}`,
-      SOLANA: `https://explorer.solana.com/tx/${txHash}?cluster=devnet`,
-    };
-    return explorers[chain] || '#';
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="flex min-h-screen items-center justify-center bg-muted/40">
         <div className="text-center">
           <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-border border-b-brand"></div>
           <p className="text-sm text-ink-soft">Loading invoice…</p>
@@ -140,7 +129,7 @@ const Invoice: React.FC = () => {
 
   if (!invoice) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
         <Card className="max-w-md w-full">
           <CardContent className="pt-6 text-center">
             <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-warn" />
@@ -161,14 +150,25 @@ const Invoice: React.FC = () => {
               <AlertTriangle className="h-8 w-8 text-warn" />
             </div>
             <h2 className="mb-2 text-2xl font-bold tracking-tight text-ink">Invoice expired</h2>
-            <p className="mb-6 text-sm text-ink-soft">This payment session timed out. Open the payment link again to start a new one.</p>
-            <button
-              type="button"
-              onClick={() => window.history.back()}
-              className="h-12 w-full rounded-xl bg-ink font-medium text-background transition hover:opacity-90"
-            >
-              Go back
-            </button>
+            <p className="mb-6 text-sm text-ink-soft">
+              The price lock ran out before a payment arrived. Start again for a fresh quote.
+            </p>
+            {invoice.linkId ? (
+              <Link
+                href={`/pay/${invoice.linkId}`}
+                className="flex h-12 w-full items-center justify-center rounded-xl bg-ink font-medium text-background transition hover:opacity-90"
+              >
+                Start a new payment
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={() => window.history.back()}
+                className="h-12 w-full rounded-xl bg-ink font-medium text-background transition hover:opacity-90"
+              >
+                Go back
+              </button>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -176,30 +176,68 @@ const Invoice: React.FC = () => {
   }
 
   if (invoice.status === 'paid') {
+    const tx = invoice.transactions?.[0];
+    const txUrl = tx ? explorerTx(invoice.chain, tx.txHash) : null;
+    const rows: [string, React.ReactNode][] = [
+      ['For', invoice.linkTitle || 'Payment'],
+      ['Amount', `${trimAmount(invoice.receivedAmount || invoice.expectedAmount)} ${invoice.crypto}`],
+      ['Value', `${invoice.amount.toFixed(2)} ${invoice.currency}`],
+      ['Network', invoice.chain],
+      ['Paid', invoice.paidAt ? new Date(invoice.paidAt).toLocaleString() : 'Confirmed'],
+    ];
+
     return (
-      <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
-        <Card className="max-w-md w-full">
-          <CardContent className="pt-6 text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-ok-soft">
-              <CheckCircle className="h-8 w-8 text-ok" />
-            </div>
-            <h2 className="mb-2 text-2xl font-bold tracking-tight text-ink">Payment received</h2>
-            <p className="mb-6 text-sm text-ink-soft">Confirmed on-chain. You can close this page.</p>
-            
-            {invoice.transactions && invoice.transactions.length > 0 && (
-              <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                <p className="text-sm text-gray-600 mb-2">Transaction Hash:</p>
-                <a
-                  href={getExplorerUrl(invoice.transactions[0].txHash, invoice.chain)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 break-all font-mono text-sm text-brand hover:underline"
-                >
-                  {invoice.transactions[0].txHash.substring(0, 10)}...{invoice.transactions[0].txHash.substring(invoice.transactions[0].txHash.length - 8)}
-                  <ExternalLink className="h-4 w-4" />
-                </a>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4">
+        <Link href="/" className="mb-6 print:hidden">
+          <Logo />
+        </Link>
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-ok-soft">
+                <CheckCircle className="h-8 w-8 text-ok" />
               </div>
-            )}
+              <h2 className="mb-1 text-2xl font-bold tracking-tight text-ink">Payment received</h2>
+              <p className="text-sm text-ink-soft">Confirmed on-chain. This page is your receipt.</p>
+            </div>
+
+            <dl className="mt-6 divide-y rounded-lg border text-sm">
+              {rows.map(([label, value]) => (
+                <div key={label} className="flex justify-between gap-4 px-4 py-2.5">
+                  <dt className="text-ink-soft">{label}</dt>
+                  <dd className="text-right font-medium text-ink">{value}</dd>
+                </div>
+              ))}
+              {tx && (
+                <div className="flex justify-between gap-4 px-4 py-2.5">
+                  <dt className="text-ink-soft">Transaction</dt>
+                  <dd>
+                    {txUrl ? (
+                      <a
+                        href={txUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 font-mono text-brand hover:underline"
+                      >
+                        {shortHash(tx.txHash)}
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    ) : (
+                      <span className="font-mono text-ink">{shortHash(tx.txHash)}</span>
+                    )}
+                  </dd>
+                </div>
+              )}
+            </dl>
+
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-xl border font-medium text-ink transition hover:bg-muted print:hidden"
+            >
+              <Printer className="h-4 w-4" /> Print or save as PDF
+            </button>
+            <p className="mt-4 break-all text-center text-xs text-ink-soft">Invoice {invoice.id}</p>
           </CardContent>
         </Card>
       </div>
@@ -367,27 +405,31 @@ const Invoice: React.FC = () => {
           {/* Transactions */}
           {invoice.transactions && invoice.transactions.length > 0 && (
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Transactions:</label>
-              {invoice.transactions.map((tx: any) => (
-                <div key={tx.id} className="bg-gray-50 rounded-lg p-3 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-mono text-gray-900">
-                      {tx.txHash.substring(0, 10)}...{tx.txHash.substring(tx.txHash.length - 8)}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {tx.confirmations} confirmations • {tx.status}
-                    </p>
+              <p className="text-sm font-medium text-ink">Transactions</p>
+              {invoice.transactions.map((tx: any) => {
+                const url = explorerTx(invoice.chain, tx.txHash);
+                return (
+                  <div key={tx.id} className="flex items-center justify-between rounded-lg bg-muted p-3">
+                    <div>
+                      <p className="font-mono text-sm text-ink">{shortHash(tx.txHash)}</p>
+                      <p className="text-xs text-ink-soft">
+                        {tx.confirmations} confirmations · {tx.status}
+                      </p>
+                    </div>
+                    {url && (
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="View on explorer"
+                        className="shrink-0 text-brand hover:underline"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    )}
                   </div>
-                  <a
-                    href={getExplorerUrl(tx.txHash, invoice.chain)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="shrink-0 text-brand hover:underline"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </a>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

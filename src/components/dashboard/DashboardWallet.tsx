@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { trimAmount } from '@/lib/utils';
 import { api, Settings, Transaction } from '@/lib/api';
 
 const ERC20 = parseAbi(['function balanceOf(address) view returns (uint256)']);
@@ -220,7 +221,7 @@ const DashboardWallet: React.FC = () => {
                         <p className="text-xs text-ink-soft">{new Date(t.timestamp).toLocaleDateString()}</p>
                       </div>
                       <p className="shrink-0 font-medium text-ink">
-                        +{t.cryptoAmount} {t.crypto}
+                        +{trimAmount(t.cryptoAmount)} {t.crypto}
                       </p>
                     </li>
                   ))}

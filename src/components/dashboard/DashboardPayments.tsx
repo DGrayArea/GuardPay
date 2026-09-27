@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Chip from '@/components/ui/Chip';
+import { trimAmount } from '@/lib/utils';
 import { api, Transaction } from '@/lib/api';
 import X402Fees from './X402Fees';
 
@@ -85,6 +86,12 @@ const DashboardPayments: React.FC = () => {
     });
   }, [transactions, filter, query]);
 
+  const emptyText = error
+    ? "Couldn't load payments. Check that the API is running."
+    : transactions.length === 0
+      ? 'No payments yet. Share a payment link to take your first one.'
+      : 'Nothing matches that search.';
+
   return (
     <div className="space-y-6 p-4 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -129,7 +136,51 @@ const DashboardPayments: React.FC = () => {
             </Tabs>
           </div>
 
-          <div className="overflow-hidden rounded-lg border">
+          {/* Phones: one row per payment instead of a wide table. */}
+          <div className="sm:hidden">
+            {loading ? (
+              <Loader2 className="mx-auto my-8 h-6 w-6 animate-spin text-ink-soft" />
+            ) : visible.length === 0 ? (
+              <p className="py-10 text-center text-sm text-ink-soft">{emptyText}</p>
+            ) : (
+              <ul className="divide-y rounded-lg border">
+                {visible.map((t) => (
+                  <li key={t.id} className="p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-ink">{t.linkTitle || 'Direct payment'}</p>
+                        <p className="text-xs text-ink-soft">
+                          {new Date(t.timestamp).toLocaleDateString()} · {short(t.customer)}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-medium text-ink">
+                          {t.amount} {t.currency}
+                        </p>
+                        <p className="text-xs text-ink-soft">
+                          {trimAmount(t.cryptoAmount)} {t.crypto}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[t.status] ?? STATUS_STYLES.pending}`}
+                      >
+                        {t.status}
+                      </span>
+                      {t.invoiceId && (
+                        <Link href={`/invoice/${t.invoiceId}`} className="text-sm font-medium text-brand hover:underline">
+                          Receipt
+                        </Link>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="hidden overflow-hidden rounded-lg border sm:block">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -153,11 +204,7 @@ const DashboardPayments: React.FC = () => {
                   ) : visible.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="py-10 text-center text-sm text-ink-soft">
-                        {error
-                          ? "Couldn't load payments. Check that the API is running."
-                          : transactions.length === 0
-                            ? 'No payments yet. Share a payment link to take your first one.'
-                            : 'Nothing matches that search.'}
+                        {emptyText}
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -173,7 +220,7 @@ const DashboardPayments: React.FC = () => {
                             {t.amount} {t.currency}
                           </div>
                           <div className="text-xs text-ink-soft">
-                            {t.cryptoAmount} {t.crypto}
+                            {trimAmount(t.cryptoAmount)} {t.crypto}
                           </div>
                         </TableCell>
                         <TableCell>

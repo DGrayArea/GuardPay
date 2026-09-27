@@ -14,6 +14,7 @@ import {
 } from '@solana/web3.js';
 import { Loader2, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
+import { trimAmount } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { Invoice } from '@/lib/api';
 
@@ -187,21 +188,36 @@ const WalletPay: React.FC<WalletPayProps> = ({ invoice }) => {
           {solPublicKey && (
             <Button onClick={paySolana} disabled={submitting} size="lg" className="w-full">
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Pay {invoice.expectedAmount} {invoice.crypto}
+              Pay {trimAmount(invoice.expectedAmount)} {invoice.crypto}
             </Button>
           )}
         </>
       ) : (
         <>
-          <div className="flex justify-center">
-            <ConnectKitButton />
-          </div>
+          <ConnectKitButton.Custom>
+            {({ isConnected, show, truncatedAddress }) =>
+              isConnected ? (
+                <button
+                  type="button"
+                  onClick={show}
+                  className="mx-auto flex items-center gap-2 rounded-full border px-4 py-1.5 font-mono text-xs text-ink-soft transition hover:bg-muted"
+                >
+                  <span className="h-2 w-2 rounded-full bg-ok" aria-hidden />
+                  {truncatedAddress}
+                </button>
+              ) : (
+                <Button onClick={show} size="lg" className="w-full">
+                  Connect wallet
+                </Button>
+              )
+            }
+          </ConnectKitButton.Custom>
           {isEvmConnected && (
             <Button onClick={payEVM} disabled={submitting} size="lg" className="w-full">
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {chainId !== targetChainId
                 ? 'Switch network & pay'
-                : `Pay ${invoice.expectedAmount} ${invoice.crypto}`}
+                : `Pay ${trimAmount(invoice.expectedAmount)} ${invoice.crypto}`}
             </Button>
           )}
         </>

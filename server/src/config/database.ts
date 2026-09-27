@@ -160,6 +160,9 @@ export function initializeDatabase() {
   addColumn('payment_links', 'chain', 'TEXT');
   addColumn('payment_links', 'token_address', 'TEXT');
   addColumn('payment_links', 'token_decimals', 'INTEGER');
+  // Links are archived, never deleted: invoices cascade on delete and would
+  // take the merchant's payment history with them.
+  addColumn('payment_links', 'archived_at', 'DATETIME');
 
   addColumn('invoices', 'received_amount', "TEXT DEFAULT '0'");
   addColumn('invoices', 'token_decimals', 'INTEGER');
@@ -361,7 +364,7 @@ export const queries = {
   setMerchantApiKey: stmt('UPDATE merchants SET api_key = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
 
   // Payment Links
-  getLinks: stmt('SELECT * FROM payment_links WHERE merchant_id = ? ORDER BY created_at DESC'),
+  getLinks: stmt('SELECT * FROM payment_links WHERE merchant_id = ? AND archived_at IS NULL ORDER BY created_at DESC'),
   getLinkById: stmt('SELECT * FROM payment_links WHERE id = ?'),
   createLink: stmt(
     'INSERT INTO payment_links (id, merchant_id, title, price, currency, crypto, wallet_address, solana_address, chain, token_address, token_decimals) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
@@ -369,7 +372,9 @@ export const queries = {
   updateLink: stmt(
     'UPDATE payment_links SET title = ?, price = ?, currency = ?, crypto = ?, wallet_address = ?, solana_address = ?, chain = ?, token_address = ?, token_decimals = ? WHERE id = ?'
   ),
-  deleteLink: stmt('DELETE FROM payment_links WHERE id = ? AND merchant_id = ?'),
+  deleteLink: stmt(
+    'UPDATE payment_links SET archived_at = CURRENT_TIMESTAMP WHERE id = ? AND merchant_id = ? AND archived_at IS NULL'
+  ),
 
   // Invoices
   getInvoiceById: stmt('SELECT * FROM invoices WHERE id = ?'),
@@ -412,8 +417,10 @@ export const queries = {
   createDelivery: stmt(
     'INSERT INTO webhook_deliveries (id, webhook_id, merchant_id, event, payload, next_attempt_at) VALUES (?, ?, ?, ?, ?, ?)'
   ),
+  // next_attempt_at is an ISO string ("…T12:00:00.000Z"). datetime('now') uses a
+  // space instead of the T, so comparing against it held every delivery back a day.
   getDueDeliveries: stmt(
-    "SELECT * FROM webhook_deliveries WHERE status = 'pending' AND next_attempt_at <= datetime('now') ORDER BY next_attempt_at ASC LIMIT 25"
+    "SELECT * FROM webhook_deliveries WHERE status = 'pending' AND next_attempt_at <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now') ORDER BY next_attempt_at ASC LIMIT 25"
   ),
   getDeliveriesByWebhook: stmt(
     'SELECT * FROM webhook_deliveries WHERE webhook_id = ? ORDER BY created_at DESC LIMIT 50'

@@ -49,6 +49,18 @@ pnpm dev:all
 
 ---
 
+## Deploying the demo
+
+The web app is on Vercel. The API in `server/` is a long-running Express process with SQLite and chain watchers, so it can't run on Vercel. Host it separately:
+
+1. On Render, go to **New → Blueprint**, pick this repo, and it reads `render.yaml`. When asked for `MASTER_SEED`, paste a **new, testnet-only** 12-word phrase (`npx bip39-cli generate`).
+2. In Vercel, set `NEXT_PUBLIC_API_URL` to the Render URL (for example `https://guardpay-api.onrender.com`) and redeploy.
+3. If the site uses a different domain, add it to `FRONTEND_URL` on Render (comma-separated).
+
+Render's free plan sleeps after 15 idle minutes. To keep it awake, add a repository variable `API_URL` with the Render URL: the `Keep API awake` workflow then pings `/health` every 10 minutes. One always-on service fits inside the free plan's 750 hours a month. The free disk is still wiped on each redeploy; for data that survives, use a paid plan with a persistent disk and point `DATABASE_PATH` at it.
+
+---
+
 ## 💰 Get Testnet Funds
 
 ### Ethereum Sepolia (ETH)
@@ -146,13 +158,17 @@ GET    /api/merchant/profile    # Get merchant details
 PUT    /api/merchant/settings   # Update receiving addresses
 POST   /api/merchant/api-key    # Generate API key
 GET    /api/merchant/stats      # Transaction statistics
-GET    /api/links               # List payment links
-POST   /api/links               # Create payment link
+GET    /api/links               # List payment links (JWT or x-api-key)
+POST   /api/links               # Create payment link (JWT or x-api-key)
+PUT    /api/links/:id           # Update a payment link
+DELETE /api/links/:id           # Archive a payment link (history is kept)
 POST   /api/invoices            # Create invoice with unique address
 GET    /api/invoices/:id        # Get invoice details
 GET    /api/invoices/:id/status # Poll payment status
 GET    /api/webhooks            # List webhooks
 POST   /api/webhooks            # Create webhook
+DELETE /api/webhooks/:id        # Remove webhook
+POST   /api/webhooks/:id/test   # Send a test event to one webhook
 ```
 
 ### Frontend (React + TypeScript)
@@ -193,9 +209,11 @@ curl -X POST http://localhost:3001/api/auth/verify \
 
 ### Create Payment Link
 
+From your own backend, use the API key from Settings. (A dashboard JWT works too.)
+
 ```bash
 curl -X POST http://localhost:3001/api/links \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "x-api-key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Premium Plan",

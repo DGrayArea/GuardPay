@@ -1,278 +1,259 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { usePublicClient } from 'wagmi';
+import { baseSepolia, bscTestnet, sepolia } from 'wagmi/chains';
+import { formatUnits, parseAbi } from 'viem';
+import { useConnection } from '@solana/wallet-adapter-react';
+import { PublicKey } from '@solana/web3.js';
+import { Copy, ExternalLink, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CreditCard, ArrowRight, ArrowDown, ArrowUp, Copy, ExternalLink } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { trimAmount } from '@/lib/utils';
+import { api, Settings, Transaction } from '@/lib/api';
 
-interface Asset {
-  name: string;
-  symbol: string;
-  balance: string;
-  value: string;
-  change: number;
-}
+const ERC20 = parseAbi(['function balanceOf(address) view returns (uint256)']);
 
+/** Testnet assets GuardPay settles in, and where to read each balance. */
+const EVM_ASSETS = [
+  { chain: baseSepolia, label: 'Base Sepolia', symbol: 'ETH', token: null },
+  { chain: baseSepolia, label: 'Base Sepolia', symbol: 'USDC', token: '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as const },
+  { chain: sepolia, label: 'Sepolia', symbol: 'ETH', token: null },
+  { chain: sepolia, label: 'Sepolia', symbol: 'USDC', token: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238' as const },
+  { chain: bscTestnet, label: 'BSC Testnet', symbol: 'BNB', token: null },
+];
+
+const FAUCETS = [
+  { label: 'Base Sepolia ETH', href: 'https://www.alchemy.com/faucets/base-sepolia' },
+  { label: 'Testnet USDC', href: 'https://faucet.circle.com/' },
+  { label: 'BSC Testnet BNB', href: 'https://testnet.bnbchain.org/faucet-smart' },
+  { label: 'Solana Devnet SOL', href: 'https://faucet.solana.com/' },
+];
+
+const isEvm = (a: string) => /^0x[0-9a-fA-F]{40}$/.test(a);
+
+const fmt = (value: string) => {
+  const n = Number(value);
+  return n === 0 ? '0' : n < 0.0001 ? '<0.0001' : n.toLocaleString(undefined, { maximumFractionDigits: 4 });
+};
+
+/** One EVM balance row, read straight from the chain. */
+const EvmBalance: React.FC<{ address: `0x${string}`; asset: (typeof EVM_ASSETS)[number] }> = ({ address, asset }) => {
+  const client = usePublicClient({ chainId: asset.chain.id });
+  const [value, setValue] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!client) return;
+    const read = asset.token
+      ? client
+          .readContract({ address: asset.token, abi: ERC20, functionName: 'balanceOf', args: [address] } as never)
+          .then((v) => formatUnits(v as unknown as bigint, 6))
+      : client.getBalance({ address }).then((v) => formatUnits(v, 18));
+    read.then(setValue).catch(() => setValue('—'));
+  }, [client, address, asset]);
+
+  return <BalanceRow label={asset.label} symbol={asset.symbol} value={value} />;
+};
+
+const SolBalance: React.FC<{ address: string }> = ({ address }) => {
+  const { connection } = useConnection();
+  const [value, setValue] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      connection
+        .getBalance(new PublicKey(address))
+        .then((lamports) => setValue(String(lamports / 1e9)))
+        .catch(() => setValue('—'));
+    } catch {
+      setValue('—');
+    }
+  }, [connection, address]);
+
+  return <BalanceRow label="Solana Devnet" symbol="SOL" value={value} />;
+};
+
+const BalanceRow: React.FC<{ label: string; symbol: string; value: string | null }> = ({ label, symbol, value }) => (
+  <li className="flex items-center justify-between gap-4 py-3">
+    <div className="flex items-center gap-3">
+      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-soft text-xs font-semibold text-brand">
+        {symbol.slice(0, 1)}
+      </span>
+      <div>
+        <p className="text-sm font-medium text-ink">{symbol}</p>
+        <p className="text-xs text-ink-soft">{label}</p>
+      </div>
+    </div>
+    <p className="text-right font-mono text-sm text-ink">
+      {value === null ? <Loader2 className="ml-auto h-4 w-4 animate-spin text-ink-soft" /> : value === '—' ? '—' : fmt(value)}
+    </p>
+  </li>
+);
+
+const AddressCard: React.FC<{ title: string; address: string; explorer: string }> = ({ title, address, explorer }) => (
+  <div className="rounded-lg bg-muted/60 p-4">
+    <p className="text-sm text-ink-soft">{title}</p>
+    <div className="mt-1 flex items-start justify-between gap-2">
+      <p className="min-w-0 break-all font-mono text-sm text-ink">{address}</p>
+      <div className="flex shrink-0">
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-label="Copy address"
+          onClick={() => {
+            navigator.clipboard.writeText(address);
+            toast.success('Address copied');
+          }}
+        >
+          <Copy size={16} />
+        </Button>
+        <a href={explorer} target="_blank" rel="noopener noreferrer" aria-label="View on explorer">
+          <Button variant="ghost" size="sm">
+            <ExternalLink size={16} />
+          </Button>
+        </a>
+      </div>
+    </div>
+  </div>
+);
+
+/**
+ * GuardPay never holds a merchant's money: payments are forwarded to the
+ * payout addresses below. This page shows those addresses and their live
+ * testnet balances, read directly from each chain.
+ */
 const DashboardWallet: React.FC = () => {
-  const { toast } = useToast();
   const { user } = useAuth();
-  const walletAddress = user?.address || 'Not Connected';
-  
-  // Dummy data
-  const assets: Asset[] = [
-    { name: 'Ethereum', symbol: 'ETH', balance: '3.45', value: '$10,285.60', change: 2.4 },
-    { name: 'USD Coin', symbol: 'USDC', balance: '2,450.00', value: '$2,450.00', change: 0 },
-    { name: 'Dai', symbol: 'DAI', balance: '1,200.00', value: '$1,201.20', change: 0.1 },
-    { name: 'Polygon', symbol: 'MATIC', balance: '245.00', value: '$220.50', change: -1.2 },
-    { name: 'Optimism', symbol: 'OP', balance: '120.00', value: '$168.00', change: 5.3 },
-  ];
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [payouts, setPayouts] = useState<Transaction[]>([]);
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(walletAddress);
-    toast({
-      title: "Address copied",
-      description: "Wallet address copied to clipboard",
-    });
-  };
+  useEffect(() => {
+    api.getSettings().then(setSettings).catch(() => undefined);
+    api
+      .getTransactions()
+      .then((tx) => setPayouts(tx.filter((t) => t.status === 'completed').slice(0, 6)))
+      .catch(() => undefined);
+  }, []);
+
+  const login = user?.address ?? '';
+  const evmAddress = settings?.receivingAddress || (isEvm(login) ? login : '');
+  const solAddress = settings?.solanaAddress || (!isEvm(login) ? login : '');
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">Wallet</h1>
-        <div className="flex items-center space-x-4">
+        <Link href="/dashboard/settings">
           <Button variant="outline" size="sm">
-            <ArrowDown size={16} className="mr-2" />
-            Deposit
+            Change payout addresses
           </Button>
-          <Button size="sm">
-            <ArrowUp size={16} className="mr-2" />
-            Withdraw
-          </Button>
-        </div>
+        </Link>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle>Wallet Overview</CardTitle>
-              <CardDescription>
-                Your on-chain payment wallet for receiving funds
-              </CardDescription>
+              <CardTitle>Payout addresses</CardTitle>
+              <CardDescription>Payments are forwarded here as soon as they confirm. GuardPay never holds them.</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="flex flex-col space-y-4">
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <div className="text-sm text-ink-soft mb-1">Your Wallet Address</div>
-                  <div className="flex items-center justify-between">
-                    <div className="font-mono text-sm break-all">{walletAddress}</div>
-                    <div className="flex items-center space-x-2">
-                      <Button variant="ghost" size="sm" onClick={copyToClipboard}>
-                        <Copy size={14} />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <ExternalLink size={14} />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-sm text-ink-soft mb-1">Total Balance (USD)</p>
-                    <p className="text-xl font-bold tracking-tight text-ink sm:text-2xl">$14,325.30</p>
-                    <div className="flex items-center mt-1 text-xs text-green-600">
-                      <ArrowUp className="mr-1 h-3 w-3" />
-                      <span>1.2% from yesterday</span>
-                    </div>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-sm text-ink-soft mb-1">Daily Volume</p>
-                    <p className="text-xl font-bold tracking-tight text-ink sm:text-2xl">$1,245.80</p>
-                    <div className="flex items-center mt-1 text-xs text-green-600">
-                      <ArrowUp className="mr-1 h-3 w-3" />
-                      <span>8.3% from yesterday</span>
-                    </div>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-sm text-ink-soft mb-1">Revenue (30d)</p>
-                    <p className="text-xl font-bold tracking-tight text-ink sm:text-2xl">$32,456.10</p>
-                    <div className="flex items-center mt-1 text-xs text-green-600">
-                      <ArrowUp className="mr-1 h-3 w-3" />
-                      <span>12.7% from last month</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <CardContent className="space-y-3">
+              {evmAddress && (
+                <AddressCard
+                  title="EVM (Base, Ethereum, BNB Chain)"
+                  address={evmAddress}
+                  explorer={`https://sepolia.basescan.org/address/${evmAddress}`}
+                />
+              )}
+              {solAddress && (
+                <AddressCard
+                  title="Solana"
+                  address={solAddress}
+                  explorer={`https://explorer.solana.com/address/${solAddress}?cluster=devnet`}
+                />
+              )}
+              {!evmAddress && !solAddress && (
+                <p className="text-sm text-ink-soft">
+                  No payout address yet. <Link href="/dashboard/settings" className="text-brand hover:underline">Add one in settings</Link>.
+                </p>
+              )}
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Assets</CardTitle>
+              <CardTitle>Balances</CardTitle>
+              <CardDescription>Live testnet balances of your payout addresses</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="overflow-hidden rounded-lg border">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-gray-50 text-ink-soft">
-                      <th className="px-4 py-3 text-left font-medium">Asset</th>
-                      <th className="px-4 py-3 text-right font-medium">Balance</th>
-                      <th className="px-4 py-3 text-right font-medium">Value (USD)</th>
-                      <th className="px-4 py-3 text-right font-medium">Change (24h)</th>
-                      <th className="px-4 py-3 text-right font-medium">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {assets.map((asset, index) => (
-                      <tr key={index} className="border-t border-gray-100">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center">
-                            <div className="h-8 w-8 rounded-full bg-gray-200 mr-3 flex items-center justify-center">
-                              {asset.symbol.charAt(0)}
-                            </div>
-                            <div>
-                              <div className="font-medium">{asset.name}</div>
-                              <div className="text-ink-soft">{asset.symbol}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-right font-medium">{asset.balance} {asset.symbol}</td>
-                        <td className="px-4 py-3 text-right">{asset.value}</td>
-                        <td className="px-4 py-3 text-right">
-                          <span className={`inline-flex items-center ${
-                            asset.change > 0 ? 'text-green-600' : 
-                            asset.change < 0 ? 'text-red-600' : 'text-ink-soft'
-                          }`}>
-                            {asset.change > 0 ? <ArrowUp className="mr-1 h-3 w-3" /> : 
-                             asset.change < 0 ? <ArrowDown className="mr-1 h-3 w-3" /> : null}
-                            {asset.change > 0 ? '+' : ''}{asset.change}%
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <Button variant="ghost" size="sm">
-                            <ArrowUp size={14} className="mr-1" />
-                            Send
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ul className="divide-y">
+                {evmAddress &&
+                  EVM_ASSETS.map((asset) => (
+                    <EvmBalance
+                      key={`${asset.chain.id}-${asset.symbol}`}
+                      address={evmAddress as `0x${string}`}
+                      asset={asset}
+                    />
+                  ))}
+                {solAddress && <SolBalance address={solAddress} />}
+              </ul>
             </CardContent>
           </Card>
         </div>
 
-        <div>
+        <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
+              <CardTitle>Recent payouts</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <Button className="w-full justify-between" size="lg">
-                <span className="flex items-center">
-                  <ArrowDown size={16} className="mr-2" />
-                  Deposit Funds
-                </span>
-                <ArrowRight size={16} />
-              </Button>
-              <Button className="w-full justify-between" size="lg">
-                <span className="flex items-center">
-                  <ArrowUp size={16} className="mr-2" />
-                  Withdraw Funds
-                </span>
-                <ArrowRight size={16} />
-              </Button>
-              <Button className="w-full justify-between" variant="outline" size="lg">
-                <span className="flex items-center">
-                  <CreditCard size={16} className="mr-2" />
-                  Buy Crypto
-                </span>
-                <ArrowRight size={16} />
-              </Button>
+            <CardContent>
+              {payouts.length === 0 ? (
+                <p className="text-sm text-ink-soft">No completed payments yet.</p>
+              ) : (
+                <ul className="divide-y">
+                  {payouts.map((t) => (
+                    <li key={t.id} className="flex items-center justify-between gap-3 py-3 text-sm">
+                      <div className="min-w-0">
+                        <p className="truncate text-ink">{t.linkTitle || 'Direct payment'}</p>
+                        <p className="text-xs text-ink-soft">{new Date(t.timestamp).toLocaleDateString()}</p>
+                      </div>
+                      <p className="shrink-0 font-medium text-ink">
+                        +{trimAmount(t.cryptoAmount)} {t.crypto}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <Link href="/dashboard/payments" className="mt-3 block text-sm text-brand hover:underline">
+                All payments
+              </Link>
             </CardContent>
           </Card>
 
-          <Card className="mt-6">
+          <Card>
             <CardHeader>
-              <CardTitle>Transaction History</CardTitle>
+              <CardTitle>Testnet faucets</CardTitle>
+              <CardDescription>Free test funds for trying a checkout</CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="all">
-                <TabsList className="w-full">
-                  <TabsTrigger value="all" className="flex-1">All</TabsTrigger>
-                  <TabsTrigger value="deposits" className="flex-1">Deposits</TabsTrigger>
-                  <TabsTrigger value="withdrawals" className="flex-1">Withdrawals</TabsTrigger>
-                </TabsList>
-                <TabsContent value="all" className="space-y-4 mt-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex items-center justify-between py-2 border-b border-gray-100">
-                      <div className="flex items-center">
-                        <div className={`p-2 rounded-full mr-3 ${i % 2 === 0 ? 'bg-green-100' : 'bg-blue-100'}`}>
-                          {i % 2 === 0 ? <ArrowDown size={14} className="text-green-600" /> : <ArrowUp size={14} className="text-blue-600" />}
-                        </div>
-                        <div>
-                          <div className="font-medium">{i % 2 === 0 ? 'Received ETH' : 'Sent USDC'}</div>
-                          <div className="text-xs text-ink-soft">Today, 2:45 PM</div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-medium">{i % 2 === 0 ? '+0.25 ETH' : '-120 USDC'}</div>
-                        <div className="text-xs text-ink-soft">{i % 2 === 0 ? '≈ $750' : '≈ $120'}</div>
-                      </div>
-                    </div>
-                  ))}
-                  <Button variant="link" className="w-full mt-2">View all transactions</Button>
-                </TabsContent>
-                
-                <TabsContent value="deposits" className="space-y-4 mt-4">
-                  <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                    <div className="flex items-center">
-                      <div className="p-2 rounded-full mr-3 bg-green-100">
-                        <ArrowDown size={14} className="text-green-600" />
-                      </div>
-                      <div>
-                        <div className="font-medium">Received ETH</div>
-                        <div className="text-xs text-ink-soft">Today, 2:45 PM</div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-medium">+0.25 ETH</div>
-                      <div className="text-xs text-ink-soft">≈ $750</div>
-                    </div>
-                  </div>
-                  <Button variant="link" className="w-full mt-2">View all deposits</Button>
-                </TabsContent>
-                
-                <TabsContent value="withdrawals" className="space-y-4 mt-4">
-                  <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                    <div className="flex items-center">
-                      <div className="p-2 rounded-full mr-3 bg-blue-100">
-                        <ArrowUp size={14} className="text-blue-600" />
-                      </div>
-                      <div>
-                        <div className="font-medium">Sent USDC</div>
-                        <div className="text-xs text-ink-soft">Today, 2:45 PM</div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-medium">-120 USDC</div>
-                      <div className="text-xs text-ink-soft">≈ $120</div>
-                    </div>
-                  </div>
-                  <Button variant="link" className="w-full mt-2">View all withdrawals</Button>
-                </TabsContent>
-              </Tabs>
+              <ul className="space-y-2">
+                {FAUCETS.map((f) => (
+                  <li key={f.href}>
+                    <a
+                      href={f.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between rounded-lg border px-3 py-2.5 text-sm text-ink transition-colors hover:bg-muted"
+                    >
+                      {f.label}
+                      <ExternalLink size={14} className="text-ink-soft" />
+                    </a>
+                  </li>
+                ))}
+              </ul>
             </CardContent>
           </Card>
         </div>

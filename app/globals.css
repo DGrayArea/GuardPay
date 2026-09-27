@@ -10,11 +10,11 @@
        primary action; violet is reserved exclusively for escrow surfaces so
        "held funds" is visually distinct from "paid". Amber flags a payment
        that needs attention (underpaid/expiring). */
-    --gp-ink: 222 47% 9%;
-    --gp-ink-soft: 220 22% 34%;
-    --gp-brand: 176 82% 32%;
-    --gp-brand-strong: 177 84% 24%;
-    --gp-brand-soft: 172 60% 95%;
+    --gp-ink: 222 47% 7%;
+    --gp-ink-soft: 220 16% 36%;
+    --gp-brand: 158 88% 29%;
+    --gp-brand-strong: 160 90% 22%;
+    --gp-brand-soft: 152 70% 95%;
     --gp-escrow: 250 84% 64%;
     --gp-escrow-soft: 250 100% 97%;
     --gp-warn: 32 92% 46%;
@@ -67,14 +67,14 @@
   .dark {
     --gp-ink: 210 40% 98%;
     --gp-ink-soft: 215 20% 65%;
-    --gp-brand: 172 76% 45%;
-    --gp-brand-strong: 172 80% 38%;
-    --gp-brand-soft: 180 40% 14%;
+    --gp-brand: 156 77% 55%;
+    --gp-brand-strong: 156 70% 45%;
+    --gp-brand-soft: 158 40% 12%;
     --gp-escrow: 250 90% 72%;
     --gp-escrow-soft: 250 40% 18%;
     --gp-warn-soft: 32 40% 16%;
     --gp-ok-soft: 160 40% 14%;
-    --gp-mark-slot: #0b1020;
+    --gp-mark-slot: #070b14;
 
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;

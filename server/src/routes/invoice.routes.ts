@@ -22,7 +22,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     const link = queries.getLinkById.get(linkId) as any;
 
-    if (!link) {
+    if (!link || link.archived_at) {
       return res.status(404).json({ error: 'Payment link not found' });
     }
 
@@ -144,7 +144,15 @@ router.get('/:id', async (req: Request, res: Response) => {
     const link = queries.getLinkById.get(invoice.link_id) as any;
 
     // Get transactions for this invoice
-    const transactions = queries.getTransactionsByInvoice.all(invoice.id);
+    const transactions = (queries.getTransactionsByInvoice.all(invoice.id) as any[]).map((t) => ({
+      id: t.id,
+      txHash: t.tx_hash,
+      amount: t.amount,
+      chain: t.chain,
+      status: t.status,
+      confirmations: t.confirmations,
+      confirmedAt: t.confirmed_at,
+    }));
 
     res.json({
       id: invoice.id,
@@ -194,7 +202,15 @@ router.get('/:id/status', (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Invoice not found' });
     }
 
-    const transactions = queries.getTransactionsByInvoice.all(invoice.id);
+    const transactions = (queries.getTransactionsByInvoice.all(invoice.id) as any[]).map((t) => ({
+      id: t.id,
+      txHash: t.tx_hash,
+      amount: t.amount,
+      chain: t.chain,
+      status: t.status,
+      confirmations: t.confirmations,
+      confirmedAt: t.confirmed_at,
+    }));
 
     res.json({
       status: invoice.status,
